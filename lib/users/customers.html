@@ -640,13 +640,19 @@
               />
             </div>
 
-            <div class="form-group">
+            <div class="form-group" id="roleGroup">
               <label class="form-label" for="formRole">Vai trò</label>
               <select class="form-control" id="formRole">
                 <option value="customer">Khách hàng</option>
                 <option value="admin">Quản trị viên</option>
-                <option value="superadmin">Quản trị viên tối cao</option>
               </select>
+              <span
+                class="form-error-msg"
+                id="roleHint"
+                style="color: var(--text-muted); display: none"
+              >
+                Không được phép thay đổi vai trò của người dùng
+              </span>
             </div>
 
             <div class="form-group" id="passwordGroup">
