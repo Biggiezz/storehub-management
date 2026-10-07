@@ -3,39 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>StoreHub - Đăng nhập</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <title>StoreHub - Đăng nhập Quản trị</title>
+  <link rel="stylesheet" href="../common/common.css" />
   <style>
-    :root {
-      --primary: #2563eb;
-      --primary-hover: #1d4ed8;
-      --text-main: #0f172a;
-      --text-muted: #64748b;
-      --input-bg: #f8fafc;
-      --input-border: #cbd5e1;
-      --input-focus: #2563eb;
-      --card-bg: #ffffff;
-      --card-border: #e2e8f0;
-      --error-bg: #fef2f2;
-      --error-border: #fecaca;
-      --error-text: #b91c1c;
-      --success-bg: #f0fdf4;
-      --success-border: #bbf7d0;
-      --success-text: #15803d;
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    }
-
     body {
-      background-color: #ffffff;
-      color: var(--text-main);
+      background: radial-gradient(circle at 50% 10%, #eff6ff 0%, #f8fafc 100%);
       min-height: 100vh;
       display: flex;
       align-items: center;
@@ -48,24 +20,45 @@
       max-width: 420px;
     }
 
+    .login-brand-header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      margin-bottom: 1.75rem;
+    }
+
+    .login-brand-header .brand-logo {
+      width: 52px;
+      height: 52px;
+      margin-bottom: 0.875rem;
+      border-radius: 14px;
+    }
+
+    .login-brand-header .brand-logo svg {
+      width: 28px;
+      height: 28px;
+    }
+
+    .login-brand-header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-main);
+      letter-spacing: -0.02em;
+    }
+
+    .login-brand-header p {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+
     .login-card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
-      border-radius: 16px;
+      border-radius: var(--radius-lg);
       padding: 2rem;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.06), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
-    }
-
-    .form-group {
-      margin-bottom: 1.25rem;
-    }
-
-    .form-label {
-      display: block;
-      font-size: 0.875rem;
-      font-weight: 500;
-      color: #334155;
-      margin-bottom: 0.5rem;
+      box-shadow: var(--shadow-lg);
     }
 
     .input-wrapper {
@@ -86,20 +79,20 @@
     .form-input {
       width: 100%;
       height: 44px;
-      background: var(--input-bg);
-      border: 1px solid var(--input-border);
-      border-radius: 10px;
+      background: #f8fafc;
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-sm);
       color: var(--text-main);
       font-size: 0.9375rem;
-      padding: 0 2.5rem 0 2.5rem;
+      padding: 0 2.5rem;
       outline: none;
-      transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+      transition: all var(--transition-fast);
     }
 
     .form-input:focus {
       background: #ffffff;
-      border-color: var(--input-focus);
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
     }
 
     .toggle-password {
@@ -131,7 +124,7 @@
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      color: #475569;
+      color: var(--text-secondary);
       cursor: pointer;
       user-select: none;
     }
@@ -146,31 +139,6 @@
     .btn-submit {
       width: 100%;
       height: 44px;
-      background: var(--primary);
-      color: white;
-      border: none;
-      border-radius: 10px;
-      font-size: 0.9375rem;
-      font-weight: 600;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-      transition: background-color 0.15s ease, transform 0.05s ease;
-    }
-
-    .btn-submit:hover:not(:disabled) {
-      background: var(--primary-hover);
-    }
-
-    .btn-submit:active:not(:disabled) {
-      transform: scale(0.99);
-    }
-
-    .btn-submit:disabled {
-      opacity: 0.7;
-      cursor: not-allowed;
     }
 
     .spinner {
@@ -190,27 +158,37 @@
     .alert {
       display: none;
       padding: 0.875rem 1rem;
-      border-radius: 10px;
+      border-radius: var(--radius-sm);
       margin-bottom: 1.25rem;
       font-size: 0.875rem;
       line-height: 1.4;
     }
 
     .alert-error {
-      background: var(--error-bg);
-      border: 1px solid var(--error-border);
-      color: var(--error-text);
+      background: var(--danger-light);
+      border: 1px solid var(--danger-border);
+      color: var(--danger-hover);
     }
 
     .alert-success {
-      background: var(--success-bg);
+      background: var(--success-light);
       border: 1px solid var(--success-border);
-      color: var(--success-text);
+      color: var(--success-hover);
     }
   </style>
 </head>
 <body>
   <div class="login-container">
+    <div class="login-brand-header">
+      <div class="brand-logo">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+        </svg>
+      </div>
+      <h1>StoreHub Admin</h1>
+      <p>Cổng đăng nhập hệ thống Quản trị & Điều hành</p>
+    </div>
+
     <div class="login-card">
       <div id="alertBox" class="alert" role="alert"></div>
 
@@ -261,7 +239,7 @@
           </label>
         </div>
 
-        <button type="submit" id="submitBtn" class="btn-submit">
+        <button type="submit" id="submitBtn" class="btn btn-primary btn-submit">
           <span class="spinner" id="spinner"></span>
           <span id="btnText">Đăng nhập</span>
         </button>
@@ -269,6 +247,7 @@
     </div>
   </div>
 
+  <script src="../common/common.js"></script>
   <script src="login.js"></script>
 </body>
 </html>
