@@ -49,11 +49,239 @@
         font-size: 0.6875rem;
         background: var(--primary-light);
         color: var(--primary);
-        padding: 0.125rem 0.375rem;
-        border-radius: var(--radius-full);
+        padding: 0.125rem 0.4rem;
+        border-radius: var(--radius-pill);
         font-weight: 700;
+        min-width: 20px;
+        text-align: center;
       }
 
+      .tab-btn.active .tab-count {
+        background: var(--primary-subtle);
+      }
+
+      /* Search bar */
+      .search-input-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+      }
+
+      .search-input-wrap svg {
+        position: absolute;
+        left: 0.75rem;
+        width: 16px;
+        height: 16px;
+        color: var(--text-muted);
+        pointer-events: none;
+      }
+
+      .search-input {
+        padding: 0.5rem 0.75rem 0.5rem 2.25rem;
+        border: 1px solid var(--card-border);
+        border-radius: var(--radius-sm);
+      }
+
+      .search-input:focus {
+        border-color: var(--primary);
+      }
+
+      .search-input::placeholder {
+        color: var(--text-muted);
+      }
+
+      /* User table avatar cell */
+      .user-cell {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+
+      .user-cell-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: var(--primary-subtle);
+        color: var(--primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8125rem;
+        font-weight: 700;
+        flex-shrink: 0;
+        object-fit: cover;
+      }
+
+      .user-cell-info {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .user-cell-name {
+        font-weight: 600;
+        color: var(--text-main);
+        font-size: 0.8125rem;
+        line-height: 1.3;
+      }
+
+      .user-cell-email {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+      }
+
+      /* Role badge */
+      .role-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.2rem 0.5rem;
+        border-radius: var(--radius-pill);
+        font-size: 0.6875rem;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      .role-customer {
+        background: #e0e7ff;
+        color: #4338ca;
+      }
+      .role-admin {
+        background: var(--warning-light);
+        color: var(--warning);
+      }
+      .role-superadmin {
+        background: var(--danger-light);
+        color: var(--danger);
+      }
+
+      /* Online dot */
+      .online-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 0.375rem;
+      }
+
+      .online-dot.online {
+        background: var(--success);
+        box-shadow: 0 0 0 2px var(--success-light);
+      }
+      .online-dot.offline {
+        background: var(--text-muted);
+      }
+
+      /* Action cell */
+      .action-cell {
+        display: flex;
+        gap: 0.375rem;
+        flex-wrap: wrap;
+      }
+
+      .btn-icon {
+        width: 32px;
+        height: 32px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--card-border);
+        background: #ffffff;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all var(--transition-fast);
+      }
+
+      .btn-icon:hover {
+        background: #f8fafc;
+        color: var(--text-main);
+        border-color: var(--card-border-hover);
+      }
+
+      .btn-icon.danger:hover {
+        background: var(--danger-light);
+        color: var(--danger);
+        border-color: var(--danger-border);
+      }
+
+      .btn-icon svg {
+        width: 15px;
+        height: 15px;
+      }
+
+      /* Pagination */
+      .pagination-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 1.5rem;
+        border-top: 1px solid var(--border-light);
+        font-size: 0.8125rem;
+        color: var(--text-secondary);
+        flex-wrap: wrap;
+        gap: 0.75rem;
+      }
+
+      .pagination-controls {
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+      }
+
+      .page-btn {
+        padding: 0.375rem 0.625rem;
+        border: 1px solid var(--card-border);
+        background: #ffffff;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+        transition: all var(--transition-fast);
+      }
+
+      .page-btn:hover:not(:disabled) {
+        background: #f8fafc;
+        color: var(--text-main);
+        border-color: var(--card-border-hover);
+      }
+
+      .page-btn.active {
+        background: var(--primary);
+        color: #ffffff;
+        border-color: var(--primary);
+      }
+
+      .page-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      /* Empty State */
+      .empty-state {
+        text-align: center;
+        padding: 3rem 1.5rem;
+        color: var(--text-muted);
+      }
+
+      .empty-state svg {
+        width: 48px;
+        height: 48px;
+        margin-bottom: 1rem;
+        opacity: 0.4;
+      }
+
+      .empty-state p {
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+      }
+
+      /* Modal scrollable body override */
+      .modal-body-scroll {
+        max-height: 60vh;
+        overflow-y: auto;
+      }
+
+      /* Stats summary above table */
       .stats-summary {
         display: flex;
         gap: 1.25rem;
@@ -72,15 +300,24 @@
         flex: 1;
         min-width: 180px;
         box-shadow: var(--shadow-xs);
+        transition:
+          transform var(--transition-fast),
+          box-shadow var(--transition-fast);
+      }
+
+      .stat-chip:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
       }
 
       .stat-chip-icon {
-        width: 38px;
-        height: 38px;
-        border-radius: var(--radius-sm);
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
         display: flex;
         align-items: center;
         justify-content: center;
+        flex-shrink: 0;
       }
 
       .stat-chip-icon svg {
@@ -103,201 +340,117 @@
       .stat-chip-label {
         font-size: 0.75rem;
         color: var(--text-muted);
-      }
-      .user-cell {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-      }
-
-      .user-cell-avatar {
-        width: 38px;
-        height: 38px;
-        border-radius: 50%;
-        object-fit: cover;
-        background: #e2e8f0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 600;
-        font-size: 0.875rem;
-        color: var(--text-secondary);
-        flex-shrink: 0;
-      }
-
-      .user-cell-info {
-        display: flex;
-        flex-direction: column;
-      }
-
-      .user-cell-name {
-        font-weight: 600;
-        color: var(--text-main);
-        font-size: 0.875rem;
-      }
-
-      .user-cell-email {
-        font-size: 0.75rem;
-        color: var(--text-muted);
-      }
-
-      .role-badge {
-        display: inline-flex;
-        align-items: center;
-        padding: 0.25rem 0.625rem;
-        border-radius: var(--radius-full);
-        font-size: 0.75rem;
-        font-weight: 600;
-      }
-
-      .role-superadmin {
-        background: #fef3c7;
-        color: #92400e;
-      }
-
-      .role-admin {
-        background: var(--primary-light);
-        color: var(--primary);
-      }
-
-      .role-customer {
-        background: #f1f5f9;
-        color: var(--text-secondary);
-      }
-
-      .pagination-bar {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 1rem 1.5rem;
-        border-top: 1px solid var(--border-light);
-        font-size: 0.8125rem;
-        color: var(--text-muted);
-        flex-wrap: wrap;
-        gap: 0.75rem;
-      }
-
-      .pagination-controls {
-        display: flex;
-        gap: 0.375rem;
-      }
-
-      .page-btn {
-        min-width: 32px;
-        height: 32px;
-        padding: 0 0.5rem;
-        border: 1px solid var(--card-border);
-        background: var(--card-bg);
-        border-radius: var(--radius-sm);
-        font-size: 0.8125rem;
         font-weight: 500;
-        color: var(--text-secondary);
-        cursor: pointer;
-        transition: all var(--transition-fast);
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
       }
 
-      .page-btn:hover:not(:disabled) {
-        background: #f8fafc;
-        color: var(--text-main);
-        border-color: var(--card-border-hover);
-      }
-
-      .page-btn.active {
-        background: var(--primary);
-        color: #ffffff;
-        border-color: var(--primary);
-      }
-
-      .page-btn:disabled {
-        opacity: 0.4;
-        cursor: not-allowed;
-      }
-
-      .empty-state {
-        text-align: center;
-        padding: 3rem 1.5rem;
-        color: var(--text-muted);
-      }
-
-      .empty-state svg {
-        width: 48px;
-        height: 48px;
-        margin-bottom: 1rem;
-        opacity: 0.4;
-      }
-
-      .empty-state p {
-        font-size: 0.875rem;
-        margin-top: 0.25rem;
-      }
-
+      /* Responsive */
       @media (max-width: 768px) {
-        .page-header-actions {
+        .page-header {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        .header-controls {
           width: 100%;
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .search-input {
+          width: 100%;
+        }
+
+        .tab-bar {
+          width: 100%;
+        }
+
+        .tab-btn {
+          flex: 1;
+          justify-content: center;
+        }
+
+        .stats-summary {
           flex-direction: column;
         }
 
-        .search-box {
-          width: 100%;
+        .stat-chip {
+          min-width: 0;
         }
 
-        .data-table th:nth-child(2),
-        .data-table td:nth-child(2),
-        .data-table th:nth-child(4),
-        .data-table td:nth-child(4) {
+        table.data-table th:nth-child(3),
+        table.data-table td:nth-child(3),
+        table.data-table th:nth-child(5),
+        table.data-table td:nth-child(5) {
+          display: none;
+        }
+
+        .pagination-bar {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        .modal-content {
+          max-width: 100%;
+          margin: 0.5rem;
+        }
+      }
+
+      @media (max-width: 480px) {
+        table.data-table th:nth-child(4),
+        table.data-table td:nth-child(4) {
           display: none;
         }
       }
     </style>
   </head>
   <body>
-    <!-- Topbar Navigation -->
-    <header class="topbar">
-      <div class="topbar-brand">
-        <div class="brand-logo">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-          </svg>
-        </div>
-        <span class="brand-name">StoreHub</span>
-      </div>
+    <!-- Header / Topbar -->
+    <header id="appNavbar" data-active="users"></header>
 
-      <nav class="topbar-nav" id="topbarNav" data-active="users"></nav>
-
-      <div class="topbar-user">
-        <div class="user-avatar" id="userAvatar">A</div>
-        <div class="user-meta">
-          <span class="user-name" id="userName">Admin</span>
-          <span class="user-role" id="userRole">Quản trị viên</span>
-        </div>
-        <button class="btn-logout" id="btnLogout" title="Đăng xuất">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-          </svg>
-        </button>
-      </div>
-    </header>
-
-    <!-- Main Content Container -->
+    <!-- Main Content -->
     <main class="main-content">
       <div class="page-header">
         <div>
-          <h2 class="page-title">Quản lý Người dùng</h2>
-          <p class="page-subtitle">Danh sách tài khoản khách hàng và nhân viên trong hệ thống</p>
+          <h1 class="page-title">Quản lý Người dùng</h1>
+          <p class="page-subtitle">
+            Quản lý danh sách khách hàng và nhân viên trên hệ thống
+          </p>
         </div>
-        <div class="page-header-actions">
-          <div class="search-box">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        <div class="header-controls">
+          <div class="search-input-wrap">
+            <svg
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
             </svg>
-            <input type="text" id="searchInput" placeholder="Tìm theo tên, email..." />
+            <input
+              type="text"
+              class="search-input"
+              id="searchInput"
+              placeholder="Tìm theo tên hoặc email..."
+            />
           </div>
           <button class="btn btn-primary" id="btnAddUser">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; margin-right: 6px">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+            <svg
+              width="16"
+              height="16"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+              />
             </svg>
             Thêm người dùng
           </button>
@@ -307,25 +460,58 @@
       <!-- Stats Summary -->
       <div class="stats-summary">
         <div class="stat-chip">
-          <div class="stat-chip-icon" style="background: var(--primary-light); color: var(--primary)">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+          <div
+            class="stat-chip-icon"
+            style="background: #e0e7ff; color: #4338ca"
+          >
+            <svg
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
+              />
             </svg>
           </div>
           <div class="stat-chip-text">
-            <span class="stat-chip-value" id="statCustomers"><span class="skeleton-box" style="width: 40px; height: 22px"></span></span>
+            <span class="stat-chip-value" id="statCustomers"
+              ><span
+                class="skeleton-box"
+                style="width: 40px; height: 22px"
+              ></span
+            ></span>
             <span class="stat-chip-label">Khách hàng</span>
           </div>
         </div>
-
         <div class="stat-chip">
-          <div class="stat-chip-icon" style="background: #e0e7ff; color: #4338ca">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <div
+            class="stat-chip-icon"
+            style="background: var(--warning-light); color: var(--warning)"
+          >
+            <svg
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
           </div>
           <div class="stat-chip-text">
-            <span class="stat-chip-value" id="statStaff"><span class="skeleton-box" style="width: 40px; height: 22px"></span></span>
+            <span class="stat-chip-value" id="statStaff"
+              ><span
+                class="skeleton-box"
+                style="width: 40px; height: 22px"
+              ></span
+            ></span>
             <span class="stat-chip-label">Nhân viên</span>
           </div>
         </div>
@@ -349,6 +535,7 @@
             </button>
           </div>
         </div>
+
         <div class="table-responsive">
           <table class="data-table">
             <thead>
@@ -374,6 +561,169 @@
         </div>
       </div>
     </main>
+
+    <!-- Add / Edit User Modal -->
+    <div class="modal-overlay" id="userModal" style="display: none">
+      <div class="modal-content" style="max-width: 520px">
+        <div class="modal-header">
+          <h3 class="modal-title" id="modalTitle">Thêm người dùng</h3>
+          <button class="modal-close-btn" id="modalCloseBtn" title="Đóng" aria-label="Đóng">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body modal-body-scroll">
+          <!-- Lazy load skeleton khi tải thông tin người dùng -->
+          <div id="modalSkeleton" style="display: none; padding: 0.25rem 0">
+            <div style="margin-bottom: 1.25rem">
+              <span class="skeleton-box" style="width: 80px; height: 14px; margin-bottom: 8px; display: block"></span>
+              <span class="skeleton-box" style="width: 100%; height: 42px; border-radius: var(--radius-sm); display: block"></span>
+            </div>
+            <div style="margin-bottom: 1.25rem">
+              <span class="skeleton-box" style="width: 60px; height: 14px; margin-bottom: 8px; display: block"></span>
+              <span class="skeleton-box" style="width: 100%; height: 42px; border-radius: var(--radius-sm); display: block"></span>
+            </div>
+            <div style="margin-bottom: 1.25rem">
+              <span class="skeleton-box" style="width: 100px; height: 14px; margin-bottom: 8px; display: block"></span>
+              <span class="skeleton-box" style="width: 100%; height: 42px; border-radius: var(--radius-sm); display: block"></span>
+            </div>
+            <div style="margin-bottom: 1.25rem">
+              <span class="skeleton-box" style="width: 70px; height: 14px; margin-bottom: 8px; display: block"></span>
+              <span class="skeleton-box" style="width: 100%; height: 42px; border-radius: var(--radius-sm); display: block"></span>
+            </div>
+            <div style="margin-bottom: 1.25rem">
+              <span class="skeleton-box" style="width: 80px; height: 14px; margin-bottom: 8px; display: block"></span>
+              <span class="skeleton-box" style="width: 100%; height: 42px; border-radius: var(--radius-sm); display: block"></span>
+            </div>
+            <div style="margin-bottom: 0.5rem">
+              <span class="skeleton-box" style="width: 70px; height: 14px; margin-bottom: 8px; display: block"></span>
+              <span class="skeleton-box" style="width: 100%; height: 42px; border-radius: var(--radius-sm); display: block"></span>
+            </div>
+          </div>
+
+          <form id="userForm" autocomplete="off">
+            <input type="hidden" id="formUserId" />
+
+            <div class="form-group">
+              <label class="form-label" for="formName">Họ và tên *</label>
+              <input
+                type="text"
+                class="form-control"
+                id="formName"
+                placeholder="Nguyễn Văn A"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="formEmail">Email *</label>
+              <input
+                type="email"
+                class="form-control"
+                id="formEmail"
+                placeholder="user@storehub.com"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="formPhone">Số điện thoại *</label>
+              <input
+                type="tel"
+                class="form-control"
+                id="formPhone"
+                placeholder="0901234567"
+                maxlength="10"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="formRole">Vai trò</label>
+              <select class="form-control" id="formRole">
+                <option value="customer">Khách hàng</option>
+                <option value="admin">Quản trị viên</option>
+                <option value="superadmin">Quản trị viên tối cao</option>
+              </select>
+            </div>
+
+            <div class="form-group" id="passwordGroup">
+              <label class="form-label" for="formPassword">Mật khẩu *</label>
+              <input
+                type="password"
+                class="form-control"
+                id="formPassword"
+                placeholder="Tối thiểu 8 ký tự, gồm chữ và số"
+              />
+              <span
+                class="form-error-msg"
+                id="passwordHint"
+                style="color: var(--text-muted); display: block"
+              >
+                Để trống nếu không muốn thay đổi mật khẩu (khi chỉnh sửa)
+              </span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="formAddress">Địa chỉ</label>
+              <input
+                type="text"
+                class="form-control"
+                id="formAddress"
+                placeholder="Số nhà, đường, quận/huyện..."
+              />
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="modalCancelBtn">Hủy</button>
+          <button class="btn btn-primary" id="modalSaveBtn">
+            <span
+              id="modalSaveSpinner"
+              class="spinner"
+              style="display: none; margin-right: 6px"
+            ></span>
+            <span id="modalSaveText">Lưu</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delete Confirm Modal -->
+    <div class="modal-overlay" id="deleteModal" style="display: none">
+      <div class="modal-content" style="max-width: 420px">
+        <div class="modal-header">
+          <h3 class="modal-title">Xác nhận xóa</h3>
+          <button class="modal-close-btn" id="deleteCloseBtn" title="Đóng" aria-label="Đóng">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p
+            style="
+              font-size: 0.875rem;
+              color: var(--text-secondary);
+              line-height: 1.6;
+            "
+          >
+            Bạn có chắc chắn muốn xóa tài khoản
+            <strong id="deleteUserName"></strong>? <br />Hành động này không thể
+            hoàn tác.
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="deleteCancelBtn">Hủy</button>
+          <button class="btn btn-danger" id="deleteConfirmBtn">
+            Xóa người dùng
+          </button>
+        </div>
+      </div>
+    </div>
 
     <script src="../common/common.js"></script>
     <script src="users.js"></script>
