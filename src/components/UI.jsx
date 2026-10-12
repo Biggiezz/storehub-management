@@ -60,8 +60,18 @@ export function Badge({ children, tone }) {
     "Đang bán",
     "published",
     "Đang hoạt động",
+    "Hoạt động",
+    "Hoàn thành",
+    "Thành công",
+    "Đang trực tuyến",
   ].includes(children);
-  const red = ["Đã hủy", "Khiếu nại", "Ngừng bán", "hidden"].includes(children);
+  const red = [
+    "Đã hủy",
+    "Khiếu nại",
+    "Ngừng bán",
+    "hidden",
+    "Đã khóa",
+  ].includes(children);
   return (
     <span
       className={`badge ${tone || (green ? "green" : red ? "red" : "blue")}`}

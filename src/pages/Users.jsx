@@ -276,14 +276,24 @@ export default function Users({ user, notify }) {
                       </td>
                       <td>
                         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                          <span style={{ fontSize: "11px", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                          <span
+                            style={{
+                              fontSize: "11px",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              color: x.isOnline ? "#16a34a" : "inherit",
+                              fontWeight: x.isOnline ? 600 : "normal",
+                            }}
+                          >
                             <span
                               style={{
-                                width: "6px",
-                                height: "6px",
+                                width: "7px",
+                                height: "7px",
                                 borderRadius: "50%",
-                                backgroundColor: x.isOnline ? "#10b981" : "#94a3b8",
+                                backgroundColor: x.isOnline ? "#16a34a" : "#94a3b8",
                                 display: "inline-block",
+                                boxShadow: x.isOnline ? "0 0 0 2px #dcfce7" : "none",
                               }}
                             />
                             {formatLastActive(x.lastActive, !!x.isOnline)}
@@ -314,7 +324,7 @@ export default function Users({ user, notify }) {
                           {canManageLock &&
                             (x.isBlocked ? (
                               <button
-                                style={{ color: "#10b981" }}
+                                style={{ color: "#16a34a" }}
                                 onClick={() => {
                                   setSelectedUser(x);
                                   setLockModalOpen(true);
