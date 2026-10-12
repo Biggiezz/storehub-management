@@ -62,8 +62,12 @@ export default function Dashboard({ user, navigate }) {
           value={period}
           onChange={(e) => setPeriod(e.target.value)}
         >
+          <option value="7d">7 ngày gần nhất</option>
+          <option value="30d">30 ngày gần nhất</option>
           <option value="0">Tháng này</option>
           <option value="1">Tháng trước</option>
+          <option value="3m">3 tháng gần nhất</option>
+          <option value="6m">6 tháng gần nhất</option>
           <option value="2">Năm 2026</option>
         </select>
       </div>
@@ -115,6 +119,10 @@ function Revenue({ period }) {
           Bao gồm đơn chưa hoàn thành, loại trừ đơn đã hủy.{" "}
           {period === "2"
             ? "Thống kê từ tháng 1 đến tháng 12 năm 2026."
+            : ["7d", "30d"].includes(period)
+            ? "Thống kê chi tiết theo từng ngày trong kỳ."
+            : ["3m", "6m"].includes(period)
+            ? "Thống kê cộng gộp theo từng tháng trong kỳ."
             : "Các cột cộng gộp theo thứ trong tuần của cả tháng."}
         </p>
       </section>
