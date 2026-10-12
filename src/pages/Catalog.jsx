@@ -2,7 +2,6 @@ import { useState } from "react";
 import {
   request,
   P,
-  U,
   N,
   query,
   money,
@@ -42,16 +41,6 @@ const config = {
     update: "/update-category/",
     remove: "/delete-category/",
   },
-  users: {
-    title: "Người dùng",
-    subtitle: "Thông tin khách hàng và đội ngũ quản trị cửa hàng.",
-    singular: "người dùng",
-    base: U,
-    list: "/get-all-users",
-    add: "/add-user",
-    update: "/update-user/",
-    remove: "/delete-user/",
-  },
   news: {
     title: "Tin tức",
     subtitle: "Biên tập và quản lý nội dung hiển thị trên ứng dụng.",
@@ -78,11 +67,9 @@ export default function Catalog({ kind, user, notify }) {
       limit: 10,
       ...(kind === "products"
         ? { keyword: term, showInactive: true, category: filter }
-        : kind === "users"
-          ? { search: term, type: filter }
-          : kind === "news"
-            ? { status: filter }
-            : {}),
+        : kind === "news"
+          ? { status: filter }
+          : {}),
     });
   return (
     <>
@@ -128,11 +115,7 @@ export default function Catalog({ kind, user, notify }) {
               }}
             >
               <option value="">
-                {kind === "products"
-                  ? "Tất cả danh mục"
-                  : kind === "users"
-                    ? "Tất cả vai trò"
-                    : "Tất cả trạng thái"}
+                {kind === "products" ? "Tất cả danh mục" : "Tất cả trạng thái"}
               </option>
               {kind === "products" ? (
                 (categories.data?.data || []).map((x) => (
@@ -140,11 +123,6 @@ export default function Catalog({ kind, user, notify }) {
                     {x.name}
                   </option>
                 ))
-              ) : kind === "users" ? (
-                <>
-                  <option value="customer">Khách hàng</option>
-                  <option value="staff">Nhân viên</option>
-                </>
               ) : (
                 <>
                   <option value="draft">Bản nháp</option>
@@ -196,8 +174,8 @@ function CatalogRows({
             .includes(term.toLocaleLowerCase("vi")),
         )
       : all;
-  const allowedDelete = !["products", "users"].includes(kind) || isSuper(user);
-  const writable = !["news", "users"].includes(kind) || isCanonicalAdmin(user);
+  const allowedDelete = kind !== "products" || isSuper(user);
+  const writable = kind !== "news" || isCanonicalAdmin(user);
   async function remove() {
     setBusy(true);
     setActionError("");
@@ -244,13 +222,7 @@ function CatalogRows({
           <table>
             <thead>
               <tr>
-                <th>
-                  {kind === "news"
-                    ? "Bài viết"
-                    : kind === "users"
-                      ? "Người dùng"
-                      : "Tên " + c.singular}
-                </th>
+                <th>{kind === "news" ? "Bài viết" : "Tên " + c.singular}</th>
                 {kind === "products" ? (
                   <>
                     <th>Danh mục</th>
@@ -258,22 +230,11 @@ function CatalogRows({
                     <th>Tồn kho</th>
                     <th>Trạng thái</th>
                   </>
-                ) : kind === "users" ? (
-                  <>
-                    <th>Liên hệ</th>
-                    <th>Vai trò</th>
-                    <th>Ngày tạo</th>
-                  </>
-                ) : kind === "news" ? (
+                ) : (
                   <>
                     <th>Trạng thái</th>
                     <th>Tác giả</th>
                     <th>Lượt xem</th>
-                  </>
-                ) : (
-                  <>
-                    <th>Trạng thái</th>
-                    <th>Ngày tạo</th>
                   </>
                 )}
                 <th className="align-right">Thao tác</th>
@@ -314,15 +275,7 @@ function CatalogRows({
                         </Badge>
                       </td>
                     </>
-                  ) : kind === "users" ? (
-                    <>
-                      <td>{x.phone || "—"}</td>
-                      <td>
-                        <Badge>{x.role}</Badge>
-                      </td>
-                      <td>{date(x.createdAt)}</td>
-                    </>
-                  ) : kind === "news" ? (
+                  ) : (
                     <>
                       <td>
                         <Badge>{x.status}</Badge>
@@ -330,22 +283,10 @@ function CatalogRows({
                       <td>{x.author}</td>
                       <td>{x.views || 0}</td>
                     </>
-                  ) : (
-                    <>
-                      <td>
-                        <Badge>Đang hoạt động</Badge>
-                      </td>
-                      <td>{date(x.createdAt)}</td>
-                    </>
                   )}
                   <td>
                     <div className="actions end">
-                      {writable &&
-                        (kind !== "users" ||
-                          isSuper(user) ||
-                          ["customer", "khách hàng"].includes(x.role)) && (
-                          <button onClick={() => setEditing(x)}>Sửa</button>
-                        )}
+                      {writable && <button onClick={() => setEditing(x)}>Sửa</button>}
                       {allowedDelete && writable && x._id !== user._id && (
                         <button
                           className="danger-link"
@@ -445,13 +386,6 @@ function Editor({
         if (colors.some((x) => !x.name.trim() || !/^#[a-f\d]{6}$/i.test(x.hex)))
           throw new Error("Mỗi màu cần tên và mã HEX hợp lệ.");
         form.set("colors", JSON.stringify(colors));
-      }
-      if (kind === "users") {
-        body = Object.fromEntries(form.entries());
-        if (!body.password) delete body.password;
-        if (!body.phone && !item.phone) delete body.phone;
-        if (!isSuper(user)) delete body.role;
-        if (!edit && !body.role) body.role = "customer";
       }
       await request(c.base + (edit ? c.update + item._id : c.add), {
         method: edit ? "PUT" : "POST",

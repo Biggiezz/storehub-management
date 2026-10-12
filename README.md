@@ -24,7 +24,7 @@ Nếu BE chạy trên máy bạn, giữ:
 VITE_API_BASE_URL=http://localhost:3000
 ```
 
-Nếu BE đã deploy, thay bằng URL gốc HTTPS thực tế của BE. Không thêm `/api`, `/users` hoặc đường dẫn router vào biến này. Không đưa MongoDB URI, JWT_SECRET, mật khẩu Atlas hoặc khóa Cloudinary vào FE. Tất cả biến VITE_ đều được đóng gói công khai vào JavaScript.
+Nếu BE đã deploy, thay bằng URL gốc HTTPS thực tế của BE. Không thêm `/api`, `/users` hoặc đường dẫn router vào biến này. Không đưa MongoDB URI, JWT*SECRET, mật khẩu Atlas hoặc khóa Cloudinary vào FE. Tất cả biến VITE* đều được đóng gói công khai vào JavaScript.
 
 ```bash
 npm run dev
@@ -50,16 +50,16 @@ Nếu chạy BE local, thực hiện cấu hình và khởi động BE riêng th
 
 Tất cả đường dẫn bên dưới có tiền tố `/api`.
 
-| Mục | Router và endpoint |
-| --- | --- |
-| Đăng nhập/đăng xuất | POST /usersRouter/login; POST /usersRouter/logout |
-| Thống kê | GET /usersRouter/admin/dashboard; GET /usersRouter/admin/revenue-stats |
-| Sản phẩm | GET /productsRouter/search-product; POST /productsRouter/add-product; PUT /productsRouter/update-product/:id; DELETE /productsRouter/delete-product/:id |
-| Danh mục | GET /productsRouter/get-categories; POST /productsRouter/add-category; PUT /productsRouter/update-category/:id; DELETE /productsRouter/delete-category/:id |
-| Đơn hàng | GET /oderRouter/admin/orders; GET /oderRouter/admin/orders/:id; PUT /oderRouter/admin/orders/:id/status |
-| Người dùng | GET /usersRouter/get-all-users; POST /usersRouter/add-user; PUT /usersRouter/update-user/:id; DELETE /usersRouter/delete-user/:id |
-| Tin tức | GET /newsRouter/admin/get-all-news; POST /newsRouter/admin/add-news; PUT /newsRouter/admin/update-news/:id; DELETE /newsRouter/admin/delete-news/:id |
-| Hồ sơ | PUT /usersRouter/update-profile; PUT /usersRouter/change-password |
+| Mục                 | Router và endpoint                                                                                                                                         |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Đăng nhập/đăng xuất | POST /usersRouter/login; POST /usersRouter/logout                                                                                                          |
+| Thống kê            | GET /usersRouter/admin/dashboard; GET /usersRouter/admin/revenue-stats                                                                                     |
+| Sản phẩm            | GET /productsRouter/search-product; POST /productsRouter/add-product; PUT /productsRouter/update-product/:id; DELETE /productsRouter/delete-product/:id    |
+| Danh mục            | GET /productsRouter/get-categories; POST /productsRouter/add-category; PUT /productsRouter/update-category/:id; DELETE /productsRouter/delete-category/:id |
+| Đơn hàng            | GET /oderRouter/admin/orders; GET /oderRouter/admin/orders/:id; PUT /oderRouter/admin/orders/:id/status                                                    |
+| Người dùng          | GET /usersRouter/get-all-users; POST /usersRouter/add-user; PUT /usersRouter/update-user/:id; DELETE /usersRouter/delete-user/:id                          |
+| Tin tức             | GET /newsRouter/admin/get-all-news; POST /newsRouter/admin/add-news; PUT /newsRouter/admin/update-news/:id; DELETE /newsRouter/admin/delete-news/:id       |
+| Hồ sơ               | PUT /usersRouter/update-profile; PUT /usersRouter/change-password                                                                                          |
 
 Tên `oderRouter` được giữ đúng như BE, không phải lỗi đánh máy trong FE. File ảnh được gửi qua FormData với field `image`; trình duyệt tự tạo multipart boundary.
 

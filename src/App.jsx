@@ -124,17 +124,7 @@ export default function App() {
             </a>
           ))}
         </nav>
-        <div className="sidebar-bottom">
-          <span className="store-symbol">
-            <Icon name="products" />
-          </span>
-          <div>
-            <strong>Store Hub</strong>
-            <small>Thương mại điện tử</small>
-          </div>
-          <span className="online-dot" />
-        </div>
-        <button className="logout" onClick={logout}>
+        <button className="logout" onClick={logout} style={{ marginTop: "auto" }}>
           <Icon name="logout" />
           Đăng xuất
         </button>
@@ -189,7 +179,7 @@ export default function App() {
           )}
         </main>
         <div className="app-footer">
-          Store Hub Admin <span>Không gian quản lý cửa hàng của bạn</span>
+          StoreHub Admin Workspace
         </div>
       </div>
       {toast && (

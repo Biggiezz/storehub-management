@@ -10,17 +10,8 @@ export default function Dashboard({ user, navigate }) {
       <div className="welcome">
         <div>
           <span className="eyebrow">STORE HUB / TỔNG QUAN</span>
-          <h1>
-            Xin chào, {user.name || "quản trị viên"}{" "}
-            <span className="wave">✦</span>
-          </h1>
-          <p>Theo dõi cửa hàng và sẵn sàng cho một ngày hiệu quả.</p>
+          <h1>Xin chào, {user.name || "quản trị viên"}</h1>
         </div>
-        <button className="primary" onClick={() => navigate("products")}>
-          <Icon name="products" />
-          Quản lý sản phẩm
-          <Icon name="arrow" size={17} />
-        </button>
       </div>
       <State loading={stats.loading} error={stats.error} retry={stats.reload} />
       {stats.data && (
@@ -78,18 +69,6 @@ export default function Dashboard({ user, navigate }) {
         </select>
       </div>
       <Revenue key={period} period={period} />
-      <div className="quick card">
-        <span className="quick-icon">
-          <Icon name="orders" size={29} />
-        </span>
-        <div>
-          <h3>Mọi đơn hàng, một nơi quản lý</h3>
-          <p>Xem thông tin người nhận và cập nhật tiến độ giao hàng.</p>
-        </div>
-        <button onClick={() => navigate("orders")}>
-          Xem đơn hàng <Icon name="arrow" size={16} />
-        </button>
-      </div>
     </>
   );
 }
@@ -156,12 +135,6 @@ function Revenue({ period }) {
           </div>
         ))}
         {!d.topProducts?.length && <State empty />}
-        <div className="insight">
-          <Icon name="products" />
-          <span>
-            Xem các sản phẩm được đặt mua nhiều nhất trong khoảng thời gian này.
-          </span>
-        </div>
       </section>
     </div>
   );
