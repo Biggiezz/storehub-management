@@ -205,8 +205,9 @@ export default function App() {
   );
 }
 function Login({ loggedIn }) {
-  const [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
   async function submit(e) {
     e.preventDefault();
     setBusy(true);
@@ -222,9 +223,7 @@ function Login({ loggedIn }) {
         },
       });
       if (!isAdmin(result.data))
-        throw new Error(
-          "Tài khoản này không có quyền truy cập trang quản trị.",
-        );
+        throw new Error("Tài khoản này không có quyền truy cập trang quản trị.");
       if (!result.token) throw new Error("BE không trả về token đăng nhập.");
       loggedIn({ token: result.token, user: result.data });
     } catch (err) {
@@ -233,95 +232,63 @@ function Login({ loggedIn }) {
       setBusy(false);
     }
   }
+
   return (
-    <div className="login-page">
-      <section className="login-art">
-        <div className="brand">
-          <span className="brand-logo">
-            <Icon name="products" size={29} />
-          </span>
-          <span>
-            store<span className="brand-light">hub</span>
-          </span>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f5f7fb", padding: "20px" }}>
+      <form
+        className="card"
+        onSubmit={submit}
+        style={{
+          width: "100%",
+          maxWidth: "380px",
+          padding: "36px 28px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "18px",
+        }}
+      >
+        <div style={{ textAlign: "center", marginBottom: "4px" }}>
+          <h2 style={{ margin: "0 0 6px", fontSize: "24px" }}>Đăng nhập</h2>
+          <small>StoreHub Admin Workspace</small>
         </div>
-        <div className="login-message">
-          <span className="eyebrow">MỘT KHÔNG GIAN. MỌI HOẠT ĐỘNG.</span>
-          <h1>
-            Quản lý dễ dàng.
-            <br />
-            Kinh doanh hiệu quả.
-          </h1>
-          <p>
-            Kết nối sản phẩm, đơn hàng và khách hàng trong một trang quản trị
-            dành riêng cho cửa hàng của bạn.
+
+        <Field label="Email">
+          <input
+            name="email"
+            type="email"
+            placeholder="admin@example.com"
+            autoComplete="username"
+            required
+            disabled={busy}
+          />
+        </Field>
+
+        <Field label="Mật khẩu">
+          <input
+            name="password"
+            type="password"
+            placeholder="Nhập mật khẩu..."
+            autoComplete="current-password"
+            required
+            disabled={busy}
+          />
+        </Field>
+
+        {error && (
+          <p className="error" role="alert" style={{ margin: 0 }}>
+            {error}
           </p>
-          <div className="art-card">
-            <span>
-              <Icon name="products" size={29} />
-            </span>
-            <div>
-              <strong>Cửa hàng trong tầm tay</strong>
-              <p>Đồng bộ dữ liệu cùng ứng dụng mobile</p>
-            </div>
-            <Icon name="check" />
-          </div>
-          <div className="art-orbit" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-          </div>
-        </div>
-        <small>STORE HUB · ADMIN WORKSPACE</small>
-      </section>
-      <section className="login-form">
-        <form onSubmit={submit}>
-          <span className="login-mark">
-            <Icon name="dashboard" size={28} />
-          </span>
-          <h2>Chào mừng trở lại</h2>
-          <p className="muted">Đăng nhập để bắt đầu quản lý cửa hàng.</p>
-          <fieldset disabled={busy}>
-            <Field
-              label="Email quản trị"
-              name="email"
-              type="email"
-              placeholder="admin@example.com"
-              autoComplete="username"
-              required
-            />
-            <Field
-              label="Mật khẩu"
-              name="password"
-              type="password"
-              placeholder="Nhập mật khẩu của bạn"
-              autoComplete="current-password"
-              required
-            />
-            {error && (
-              <p className="error" role="alert">
-                {error}
-              </p>
-            )}
-            <button className="primary login-submit">
-              {busy ? "Đang đăng nhập…" : "Đăng nhập"}
-              <Icon name="arrow" />
-            </button>
-          </fieldset>
-          <p className="login-note">
-            Dùng tài khoản quản trị đã có trên hệ thống.
-            <br />
-            Liên hệ người quản lý hệ thống nếu bạn chưa có quyền.
-          </p>
-          <details>
-            <summary>Cấu hình kết nối</summary>
-            <code>{API_BASE}</code>
-            <p>
-              Đặt VITE_API_BASE_URL trong .env bằng URL gốc của BE (không thêm
-              /api), sau đó khởi động lại FE.
-            </p>
-          </details>
-        </form>
-      </section>
+        )}
+
+        <button
+          className="primary"
+          type="submit"
+          disabled={busy}
+          style={{ width: "100%", padding: "12px", marginTop: "4px" }}
+        >
+          {busy ? "Đang đăng nhập…" : "Đăng nhập"}
+        </button>
+      </form>
     </div>
   );
 }
