@@ -21,6 +21,9 @@ export function Icon({ name, size = 20 }) {
     arrow: "M5 12h14 M14 7l5 5-5 5",
     check: "m5 12 4 4L19 6",
     money: "M3 5h18v14H3z M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8",
+    lock: "M7 11V7a5 5 0 0 1 10 0v4 M5 11h14v10H5z",
+    unlock: "M7 11V7a5 5 0 0 1 9.9-1 M5 11h14v10H5z",
+    edit: "M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7 M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z",
   };
   return (
     <svg

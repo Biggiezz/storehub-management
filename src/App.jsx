@@ -13,6 +13,7 @@ import Dashboard from "./pages/Dashboard";
 import Catalog from "./pages/Catalog";
 import Orders from "./pages/Orders";
 import Settings from "./pages/Settings";
+import Users from "./pages/Users";
 const navigation = [
   ["dashboard", "Tổng quan"],
   ["products", "Sản phẩm"],
@@ -181,6 +182,8 @@ export default function App() {
               notify={setToast}
               onUser={(newUser) => updateSession({ ...session, user: newUser })}
             />
+          ) : page === "users" ? (
+            <Users user={user} notify={setToast} />
           ) : (
             <Catalog key={page} kind={page} user={user} notify={setToast} />
           )}
