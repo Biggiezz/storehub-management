@@ -162,14 +162,6 @@ export default function Users({ user, notify }) {
 
   return (
     <>
-      <div className="welcome">
-        <div>
-          <span className="eyebrow">CỬA HÀNG / NGƯỜI DÙNG</span>
-          <h1>Quản lý Người dùng</h1>
-          <p>Quản lý tài khoản khách hàng, phân quyền nhân sự và kiểm soát vi phạm.</p>
-        </div>
-      </div>
-
       <div className="card">
         {/* Toolbar: Tìm kiếm & Bộ lọc */}
         <div className="toolbar">
@@ -364,10 +356,10 @@ export default function Users({ user, notify }) {
             </span>
             <div>
               <button disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
-                ← Trước
+                Trước
               </button>
               <button disabled={!hasNext} onClick={() => setPage((p) => p + 1)}>
-                Sau →
+                Sau
               </button>
             </div>
           </div>

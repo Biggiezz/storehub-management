@@ -12,18 +12,7 @@ import {
 } from "../components/UI";
 export default function Orders({ user, notify }) {
   const [page, setPage] = useState(1);
-  return (
-    <>
-      <div className="welcome">
-        <div>
-          <span className="eyebrow">CỬA HÀNG / ĐƠN HÀNG</span>
-          <h1>Đơn hàng</h1>
-          <p>Theo dõi đơn mua từ ứng dụng và quản lý tiến độ giao hàng.</p>
-        </div>
-      </div>
-      <OrderList key={page} {...{ page, setPage, user, notify }} />
-    </>
-  );
+  return <OrderList key={page} {...{ page, setPage, user, notify }} />;
 }
 function OrderList({ page, setPage, user, notify }) {
   const { data, loading, error, reload } = useResource(
@@ -93,7 +82,7 @@ function OrderList({ page, setPage, user, notify }) {
                   </td>
                   <td>
                     <button onClick={() => setSelected(o._id)}>
-                      Chi tiết →
+                      Chi tiết
                     </button>
                   </td>
                 </tr>

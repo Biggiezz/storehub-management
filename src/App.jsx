@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import {
   API_BASE,
   U,
@@ -8,12 +8,13 @@ import {
   isAdmin,
   isCanonicalAdmin,
 } from "./api";
-import { Field, Icon } from "./components/UI";
-import Dashboard from "./pages/Dashboard";
-import Catalog from "./pages/Catalog";
-import Orders from "./pages/Orders";
-import Settings from "./pages/Settings";
-import Users from "./pages/Users";
+import { Field, Icon, State } from "./components/UI";
+
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Catalog = lazy(() => import("./pages/Catalog"));
+const Orders = lazy(() => import("./pages/Orders"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Users = lazy(() => import("./pages/Users"));
 const navigation = [
   ["dashboard", "Tổng quan"],
   ["products", "Sản phẩm"],
@@ -100,8 +101,8 @@ export default function App() {
           className="brand"
           onClick={() => navigate("dashboard")}
         >
-          <span className="brand-logo">
-            <Icon name="products" size={27} />
+          <span className="brand-logo" aria-hidden="true">
+            SH
           </span>
           <span>
             store<span className="brand-light">hub</span>
@@ -154,29 +155,31 @@ export default function App() {
           </div>
         </header>
         <main>
-          {!allowed ? (
-            <div className="card empty">
-              <h2>Vai trò chưa được BE hỗ trợ ở mục này</h2>
-              <p>
-                API đơn hàng và tin tức chỉ chấp nhận role admin hoặc
-                superadmin.
-              </p>
-            </div>
-          ) : page === "dashboard" ? (
-            <Dashboard {...{ user, navigate }} />
-          ) : page === "orders" ? (
-            <Orders user={user} notify={setToast} />
-          ) : page === "settings" ? (
-            <Settings
-              user={user}
-              notify={setToast}
-              onUser={(newUser) => updateSession({ ...session, user: newUser })}
-            />
-          ) : page === "users" ? (
-            <Users user={user} notify={setToast} />
-          ) : (
-            <Catalog key={page} kind={page} user={user} notify={setToast} />
-          )}
+          <Suspense fallback={<State loading={true} message="Đang tải..." />}>
+            {!allowed ? (
+              <div className="card empty">
+                <h2>Vai trò chưa được BE hỗ trợ ở mục này</h2>
+                <p>
+                  API đơn hàng và tin tức chỉ chấp nhận role admin hoặc
+                  superadmin.
+                </p>
+              </div>
+            ) : page === "dashboard" ? (
+              <Dashboard {...{ user, navigate }} />
+            ) : page === "orders" ? (
+              <Orders user={user} notify={setToast} />
+            ) : page === "settings" ? (
+              <Settings
+                user={user}
+                notify={setToast}
+                onUser={(newUser) => updateSession({ ...session, user: newUser })}
+              />
+            ) : page === "users" ? (
+              <Users user={user} notify={setToast} />
+            ) : (
+              <Catalog key={page} kind={page} user={user} notify={setToast} />
+            )}
+          </Suspense>
         </main>
         <div className="app-footer">
           StoreHub Admin Workspace

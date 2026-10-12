@@ -9,7 +9,6 @@ export default function Dashboard({ user, navigate }) {
     <>
       <div className="welcome">
         <div>
-          <span className="eyebrow">STORE HUB / TỔNG QUAN</span>
           <h1>Xin chào, {user.name || "quản trị viên"}</h1>
         </div>
       </div>

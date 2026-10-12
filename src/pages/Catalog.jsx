@@ -73,15 +73,6 @@ export default function Catalog({ kind, user, notify }) {
     });
   return (
     <>
-      <div className="welcome">
-        <div>
-          <span className="eyebrow">
-            CỬA HÀNG / {c.title.toLocaleUpperCase("vi")}
-          </span>
-          <h1>{c.title}</h1>
-          <p>{c.subtitle}</p>
-        </div>
-      </div>
       <div className="card">
         <div className="toolbar">
           <form

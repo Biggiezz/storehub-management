@@ -41,13 +41,6 @@ export default function Settings({ user, onUser, notify }) {
   }
   return (
     <>
-      <div className="welcome">
-        <div>
-          <span className="eyebrow">TÀI KHOẢN / CÀI ĐẶT</span>
-          <h1>Hồ sơ quản trị</h1>
-          <p>Quản lý thông tin cá nhân và mật khẩu đăng nhập.</p>
-        </div>
-      </div>
       {error && (
         <p className="error" role="alert">
           {error}

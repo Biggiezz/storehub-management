@@ -91,7 +91,6 @@ export function State({ loading, error, empty, retry }) {
   if (empty)
     return (
       <div className="empty">
-        <Icon name="products" size={34} />
         <strong>Chưa có dữ liệu phù hợp</strong>
         <span>Thử thay đổi bộ lọc hoặc thêm dữ liệu mới.</span>
       </div>
@@ -109,10 +108,10 @@ export function Pager({ page, setPage, hasNext, total }) {
       </span>
       <div>
         <button disabled={page <= 1} onClick={() => setPage(page - 1)}>
-          ← Trước
+          Trước
         </button>
         <button disabled={!hasNext} onClick={() => setPage(page + 1)}>
-          Sau →
+          Sau
         </button>
       </div>
     </div>
