@@ -181,9 +181,6 @@ export default function App() {
             )}
           </Suspense>
         </main>
-        <div className="app-footer">
-          StoreHub Admin Workspace
-        </div>
       </div>
       {toast && (
         <div className="toast" role="status">
