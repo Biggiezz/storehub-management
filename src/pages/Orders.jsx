@@ -19,12 +19,20 @@ function OrderList({ page, setPage, user, notify }) {
     `${O}/admin/orders?page=${page}&limit=10`,
   );
   const [selected, setSelected] = useState(null),
-    [search, setSearch] = useState("");
-  const rows = (data?.data || []).filter((x) =>
-    `${x.orderCode} ${x.receiverName} ${x.receiverPhone}`
-      .toLowerCase()
-      .includes(search.toLowerCase()),
-  );
+    [search, setSearch] = useState(""),
+    [statusFilter, setStatusFilter] = useState("");
+  const rows = (data?.data || []).filter((x) => {
+    const keyword = search.trim().toLowerCase();
+
+    const matchesSearch =
+      `${x.orderCode || ""} ${x.receiverName || ""} ${x.receiverPhone || ""}`
+        .toLowerCase()
+        .includes(keyword);
+
+    const matchesStatus = !statusFilter || x.status === statusFilter;
+
+    return matchesSearch && matchesStatus;
+  });
   return (
     <div className="card">
       <div className="toolbar">
@@ -37,6 +45,23 @@ function OrderList({ page, setPage, user, notify }) {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+
+        <select
+          aria-label="Lọc theo trạng thái đơn hàng"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          <option value="">Tất cả trạng thái</option>
+          <option value="Chờ xác nhận">Chờ xác nhận</option>
+          <option value="Đã xác nhận">Đã xác nhận</option>
+          <option value="Đã rời kho">Đã rời kho</option>
+          <option value="Đang giao hàng">Đang giao hàng</option>
+          <option value="Đã giao hàng">Đã giao hàng</option>
+          <option value="Đã hoàn thành">Đã hoàn thành</option>
+          <option value="Khiếu nại">Khiếu nại</option>
+          <option value="Đã hủy">Đã hủy</option>
+        </select>
+
         <button onClick={reload}>
           <Icon name="refresh" size={16} />
           Tải lại
@@ -81,9 +106,7 @@ function OrderList({ page, setPage, user, notify }) {
                     <Badge>{o.status}</Badge>
                   </td>
                   <td>
-                    <button onClick={() => setSelected(o._id)}>
-                      Chi tiết
-                    </button>
+                    <button onClick={() => setSelected(o._id)}>Chi tiết</button>
                   </td>
                 </tr>
               ))}
