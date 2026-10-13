@@ -341,7 +341,7 @@ export default function ActivityLog() {
           <input
             type="search"
             aria-label="Tìm kiếm nhật ký"
-            placeholder="Tìm tài khoản, hành động, IP..."
+            placeholder="Tìm tài khoản, hành động ..."
             value={keyword}
             onChange={(event) => setKeyword(event.target.value)}
             style={styles.input}
