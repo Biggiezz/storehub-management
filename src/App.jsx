@@ -15,6 +15,7 @@ const Catalog = lazy(() => import("./pages/Catalog"));
 const Orders = lazy(() => import("./pages/Orders"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Users = lazy(() => import("./pages/Users"));
+const ActivityLog = lazy(() => import("./pages/ActivityLog"));
 const navigation = [
   ["dashboard", "Tổng quan"],
   ["products", "Sản phẩm"],
@@ -22,6 +23,7 @@ const navigation = [
   ["orders", "Đơn hàng"],
   ["users", "Người dùng"],
   ["news", "Tin tức"],
+  ["activity-log", "Nhật ký hoạt động"],
   ["settings", "Cài đặt"],
 ];
 function initialPage() {
@@ -85,7 +87,9 @@ export default function App() {
       </>
     );
   const user = session.user,
-    allowed = !["orders", "news"].includes(page) || isCanonicalAdmin(user);
+    allowed =
+      !["orders", "news", "activity-log"].includes(page) ||
+      isCanonicalAdmin(user);
   return (
     <div className="app-shell">
       {menu && (
@@ -125,7 +129,11 @@ export default function App() {
             </a>
           ))}
         </nav>
-        <button className="logout" onClick={logout} style={{ marginTop: "auto" }}>
+        <button
+          className="logout"
+          onClick={logout}
+          style={{ marginTop: "auto" }}
+        >
           <Icon name="logout" />
           Đăng xuất
         </button>
@@ -172,10 +180,14 @@ export default function App() {
               <Settings
                 user={user}
                 notify={setToast}
-                onUser={(newUser) => updateSession({ ...session, user: newUser })}
+                onUser={(newUser) =>
+                  updateSession({ ...session, user: newUser })
+                }
               />
             ) : page === "users" ? (
               <Users user={user} notify={setToast} />
+            ) : page === "activity-log" ? (
+              <ActivityLog />
             ) : (
               <Catalog key={page} kind={page} user={user} notify={setToast} />
             )}
@@ -213,7 +225,9 @@ function Login({ loggedIn }) {
         },
       });
       if (!isAdmin(result.data))
-        throw new Error("Tài khoản này không có quyền truy cập trang quản trị.");
+        throw new Error(
+          "Tài khoản này không có quyền truy cập trang quản trị.",
+        );
       if (!result.token) throw new Error("BE không trả về token đăng nhập.");
       loggedIn({ token: result.token, user: result.data });
     } catch (err) {
@@ -224,7 +238,16 @@ function Login({ loggedIn }) {
   }
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f5f7fb", padding: "20px" }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#f5f7fb",
+        padding: "20px",
+      }}
+    >
       <form
         className="card"
         onSubmit={submit}
