@@ -392,7 +392,6 @@ export default function ActivityLog() {
                 <th style={styles.th}>Thời gian</th>
                 <th style={styles.th}>Tài khoản</th>
                 <th style={styles.th}>Hành động</th>
-                <th style={styles.th}>Địa chỉ IP</th>
                 <th style={styles.th}>Chi tiết</th>
               </tr>
             </thead>
@@ -400,13 +399,13 @@ export default function ActivityLog() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} style={{ ...styles.td, textAlign: "center" }}>
+                  <td colSpan={4} style={{ ...styles.td, textAlign: "center" }}>
                     Đang tải nhật ký hoạt động...
                   </td>
                 </tr>
               ) : filteredActivities.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ ...styles.td, textAlign: "center" }}>
+                  <td colSpan={4} style={{ ...styles.td, textAlign: "center" }}>
                     {error
                       ? "Không có dữ liệu để hiển thị."
                       : "Không tìm thấy nhật ký hoạt động."}
@@ -426,7 +425,7 @@ export default function ActivityLog() {
                         {String(getAction(activity))}
                       </span>
                     </td>
-                    <td style={styles.td}>{getIp(activity)}</td>
+
                     <td style={styles.td}>
                       <button
                         type="button"
@@ -495,19 +494,6 @@ export default function ActivityLog() {
             <p>
               <strong>Hành động:</strong> {String(getAction(selectedActivity))}
             </p>
-            <p>
-              <strong>Địa chỉ IP:</strong> {getIp(selectedActivity)}
-            </p>
-
-            <h3>Dữ liệu trước khi thay đổi</h3>
-            <pre style={styles.pre}>
-              {formatValue(getBefore(selectedActivity))}
-            </pre>
-
-            <h3>Dữ liệu sau khi thay đổi</h3>
-            <pre style={styles.pre}>
-              {formatValue(getAfter(selectedActivity))}
-            </pre>
 
             <details style={{ marginTop: 16 }}>
               <summary style={{ cursor: "pointer", fontWeight: 600 }}>

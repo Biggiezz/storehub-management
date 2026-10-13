@@ -49,7 +49,11 @@ export async function request(
   if (signal?.aborted) controller.abort();
   const multipart = body instanceof FormData;
   try {
-    const response = await fetch(`${API_BASE}/api${path}`, {
+    const url = path.startsWith("/users/admin/recent-activities")
+      ? `${API_BASE}${path}`
+      : `${API_BASE}/api${path}`;
+
+    const response = await fetch(url, {
       method,
       signal: controller.signal,
       headers: {
