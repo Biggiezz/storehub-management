@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useResource } from "../hooks";
 import { O, request, money, date, nextStatuses } from "../api";
 import {
@@ -10,69 +10,227 @@ import {
   Field,
   Icon,
 } from "../components/UI";
+import {
+  EMPTY_ORDER_FILTERS,
+  ORDER_STATUSES,
+  validateOrderFilters,
+  hasOrderFilters,
+  fetchOrderSnapshot,
+  filterOrders,
+} from "../services/orderSearch";
+
 export default function Orders({ user, notify }) {
-  const [page, setPage] = useState(1);
-  return <OrderList key={page} {...{ page, setPage, user, notify }} />;
-}
-function OrderList({ page, setPage, user, notify }) {
-  const { data, loading, error, reload } = useResource(
-    `${O}/admin/orders?page=${page}&limit=10`,
-  );
-  const [selected, setSelected] = useState(null),
-    [search, setSearch] = useState(""),
-    [statusFilter, setStatusFilter] = useState("");
-  const rows = (data?.data || []).filter((x) => {
-    const keyword = search.trim().toLowerCase();
-
-    const matchesSearch =
-      `${x.orderCode || ""} ${x.receiverName || ""} ${x.receiverPhone || ""}`
-        .toLowerCase()
-        .includes(keyword);
-
-    const matchesStatus = !statusFilter || x.status === statusFilter;
-
-    return matchesSearch && matchesStatus;
-  });
+  const [draft, setDraft] = useState({ ...EMPTY_ORDER_FILTERS }),
+    [applied, setApplied] = useState({ ...EMPTY_ORDER_FILTERS });
+  const [error, setError] = useState(""),
+    [revision, setRevision] = useState(0);
+  const set = (key) => (e) => setDraft({ ...draft, [key]: e.target.value });
+  function apply(e) {
+    e.preventDefault();
+    const next = Object.fromEntries(
+      Object.entries(draft).map(([k, v]) => [k, v.trim()]),
+    );
+    const message = validateOrderFilters(next);
+    setError(message);
+    if (!message) {
+      setApplied(next);
+      setRevision((v) => v + 1);
+    }
+  }
+  function reset() {
+    setDraft({ ...EMPTY_ORDER_FILTERS });
+    setApplied({ ...EMPTY_ORDER_FILTERS });
+    setError("");
+    setRevision((v) => v + 1);
+  }
   return (
-    <div className="card">
-      <div className="toolbar">
-        <div className="searchbox">
-          <Icon name="search" />
-          <input
-            aria-label="Tìm đơn hàng trong trang"
-            placeholder="Tìm mã đơn, khách hàng trong trang này…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+    <>
+      <div className="welcome">
+        <div>
+          <span className="eyebrow">CỬA HÀNG / ĐƠN HÀNG</span>
+          <h1>Đơn hàng</h1>
+          <p>Tìm đúng đơn hàng theo mã đơn, khách hàng và thời gian đặt.</p>
         </div>
-
-        <select
-          aria-label="Lọc theo trạng thái đơn hàng"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        >
-          <option value="">Tất cả trạng thái</option>
-          <option value="Chờ xác nhận">Chờ xác nhận</option>
-          <option value="Đã xác nhận">Đã xác nhận</option>
-          <option value="Đã rời kho">Đã rời kho</option>
-          <option value="Đang giao hàng">Đang giao hàng</option>
-          <option value="Đã giao hàng">Đã giao hàng</option>
-          <option value="Đã hoàn thành">Đã hoàn thành</option>
-          <option value="Khiếu nại">Khiếu nại</option>
-          <option value="Đã hủy">Đã hủy</option>
-        </select>
-
-        <button onClick={reload}>
+      </div>
+      <form className="card filter-panel" onSubmit={apply}>
+        <div className="section-head">
+          <h2>Tìm kiếm và lọc đơn hàng</h2>
+        </div>
+        <div className="filter-grid">
+          <Field label="Mã đơn hàng">
+            <input
+              value={draft.orderCode}
+              onChange={set("orderCode")}
+              placeholder="Ví dụ: SH-12345"
+              maxLength={100}
+            />
+          </Field>
+          <Field label="Khách hàng">
+            <input
+              value={draft.customer}
+              onChange={set("customer")}
+              placeholder="Tên, email hoặc số điện thoại"
+              maxLength={200}
+            />
+          </Field>
+          <Field label="Từ ngày">
+            <input
+              type="date"
+              value={draft.fromDate}
+              onChange={set("fromDate")}
+            />
+          </Field>
+          <Field label="Đến ngày">
+            <input type="date" value={draft.toDate} onChange={set("toDate")} />
+          </Field>
+          <Field label="Trạng thái đơn">
+            <select value={draft.status} onChange={set("status")}>
+              <option value="">Tất cả trạng thái</option>
+              {ORDER_STATUSES.map((s) => (
+                <option key={s}>{s}</option>
+              ))}
+            </select>
+          </Field>
+        </div>
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="filter-footer">
+          <span>
+            Ngày đặt tính theo giờ Việt Nam (UTC+7), bao gồm cả ngày kết thúc.
+          </span>
+          <div className="actions">
+            <button type="button" onClick={reset}>
+              Xóa bộ lọc
+            </button>
+            <button className="primary">
+              <Icon name="search" size={17} />
+              Áp dụng bộ lọc
+            </button>
+          </div>
+        </div>
+      </form>
+      <OrderResults
+        key={JSON.stringify(applied) + revision}
+        filters={applied}
+        {...{ user, notify }}
+      />
+    </>
+  );
+}
+function OrderResults({ filters, user, notify }) {
+  const [selected, setSelected] = useState(null),
+    [revision, setRevision] = useState(0),
+    [page, setPage] = useState(1);
+  const [state, setState] = useState({
+    loading: true,
+    error: "",
+    rows: [],
+    total: 0,
+    pages: 0,
+  });
+  const [progress, setProgress] = useState(null);
+  const filtered = hasOrderFilters(filters);
+  // Filtered result pages reuse a single complete snapshot; they never re-fetch all pages.
+  const remotePage = filtered ? 1 : page;
+  useEffect(() => {
+    const abort = new AbortController();
+    const load = async () => {
+      try {
+        if (filtered) {
+          const all = await fetchOrderSnapshot({
+            signal: abort.signal,
+            onProgress: (value) => {
+              if (!abort.signal.aborted) setProgress(value);
+            },
+          });
+          const rows = filterOrders(all, filters);
+          if (!abort.signal.aborted)
+            setState({
+              loading: false,
+              error: "",
+              rows,
+              total: rows.length,
+              pages: Math.ceil(rows.length / 10),
+              scanned: all.length,
+            });
+        } else {
+          const result = await request(
+            `${O}/admin/orders?page=${remotePage}&limit=10`,
+            { signal: abort.signal },
+          );
+          if (!Array.isArray(result.data))
+            throw new Error("Danh sách đơn hàng không hợp lệ.");
+          if (!abort.signal.aborted)
+            setState({
+              loading: false,
+              error: "",
+              rows: result.data,
+              total: result.pagination?.totalProducts,
+              pages: result.pagination?.totalPages || 1,
+            });
+        }
+      } catch (err) {
+        if (!abort.signal.aborted)
+          setState({
+            loading: false,
+            error: err.message,
+            rows: [],
+            total: 0,
+            pages: 0,
+          });
+      }
+    };
+    load();
+    return () => abort.abort();
+  }, [filters, filtered, remotePage, revision]);
+  function reload() {
+    setState({ loading: true, error: "", rows: [], total: 0, pages: 0 });
+    setProgress(null);
+    setPage(1);
+    setRevision((v) => v + 1);
+  }
+  function goPage(next) {
+    if (!filtered)
+      setState({ loading: true, error: "", rows: [], total: 0, pages: 0 });
+    setPage(next);
+  }
+  const rows = filtered
+    ? state.rows.slice((page - 1) * 10, page * 10)
+    : state.rows;
+  return (
+    <section className="card">
+      <div className="list-heading">
+        <div>
+          <strong>
+            {filtered ? "Kết quả theo bộ lọc đã áp dụng" : "Tất cả đơn hàng"}
+          </strong>
+          {filtered && (
+            <small className="block">
+              {state.scanned != null && ` Đã kiểm tra ${state.scanned} đơn.`}
+            </small>
+          )}
+        </div>
+        <button onClick={reload} disabled={state.loading}>
           <Icon name="refresh" size={16} />
           Tải lại
         </button>
       </div>
+      {filtered && state.loading && progress && (
+        <p className="filter-progress" role="status">
+          Đã tải {progress.loaded}/{progress.total} đơn hàng… Chỉ hiển thị kết
+          quả khi tải đủ dữ liệu.
+        </p>
+      )}
       <State
-        {...{ loading, error }}
+        loading={state.loading}
+        error={state.error}
         retry={reload}
-        empty={!loading && !error && !rows.length}
+        empty={!state.loading && !state.error && !rows.length}
       />
-      {!loading && !error && !!rows.length && (
+      {!state.loading && !state.error && !!rows.length && (
         <div className="table-wrap">
           <table>
             <thead>
@@ -92,11 +250,19 @@ function OrderList({ page, setPage, user, notify }) {
                     <strong className="order-code">
                       {o.orderCode || o._id.slice(-8)}
                     </strong>
-                    <small className="block">{date(o.createdAt)}</small>
+                    <small className="block">
+                      {o.createdAt
+                        ? new Date(o.createdAt).toLocaleString("vi-VN", {
+                            timeZone: "Asia/Ho_Chi_Minh",
+                          })
+                        : "—"}
+                    </small>
                   </td>
                   <td>
                     <strong>{o.receiverName || o.user?.name || "—"}</strong>
-                    <small className="block">{o.receiverPhone || "—"}</small>
+                    <small className="block">
+                      {o.receiverPhone || o.user?.phone || "—"}
+                    </small>
                   </td>
                   <td className="strong nowrap">
                     {money(o.totalAmount ?? o.totalPrice)}
@@ -106,7 +272,9 @@ function OrderList({ page, setPage, user, notify }) {
                     <Badge>{o.status}</Badge>
                   </td>
                   <td>
-                    <button onClick={() => setSelected(o._id)}>Chi tiết</button>
+                    <button onClick={() => setSelected(o._id)}>
+                      Chi tiết →
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -114,14 +282,20 @@ function OrderList({ page, setPage, user, notify }) {
           </table>
         </div>
       )}
-      {data && (
+      {!state.loading && !state.error && (
         <Pager
           page={page}
-          setPage={setPage}
-          total={data.pagination?.totalProducts}
-          hasNext={page < data.pagination?.totalPages}
+          setPage={goPage}
+          total={state.total}
+          hasNext={page < state.pages}
         />
-      )}{" "}
+      )}
+      {filtered && (
+        <p className="compat-note">
+          Chế độ tương thích: bộ lọc hiện xử lý trên trình duyệt sau khi tải dữ
+          liệu. Với hơn 5.000 đơn.
+        </p>
+      )}
       {selected && (
         <OrderDetail
           id={selected}
@@ -133,10 +307,9 @@ function OrderList({ page, setPage, user, notify }) {
           }}
         />
       )}
-    </div>
+    </section>
   );
 }
-
 function OrderDetail({ id, user, close, saved }) {
   const { data, loading, error, reload } = useResource(
     `${O}/admin/orders/${id}`,
