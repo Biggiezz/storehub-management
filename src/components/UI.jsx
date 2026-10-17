@@ -127,7 +127,7 @@ export function Pager({ page, setPage, hasNext, total }) {
     </div>
   );
 }
-export function Modal({ title, children, close, busy = false }) {
+export function Modal({ title, children, close, busy = false, className = "" }) {
   const ref = useRef(null);
   useEffect(() => {
     const dialog = ref.current;
@@ -141,7 +141,7 @@ export function Modal({ title, children, close, busy = false }) {
   return (
     <dialog
       ref={ref}
-      className="modal"
+      className={`modal ${className}`.trim()}
       onCancel={(e) => {
         e.preventDefault();
         if (!busy) close();

@@ -310,7 +310,7 @@ function OrderResults({ filters, user, notify }) {
     </section>
   );
 }
-function OrderDetail({ id, user, close, saved }) {
+export function OrderDetail({ id, user, close, saved }) {
   const { data, loading, error, reload } = useResource(
     `${O}/admin/orders/${id}`,
   );
