@@ -15,6 +15,7 @@ const Catalog = lazy(() => import("./pages/Catalog"));
 const Orders = lazy(() => import("./pages/Orders"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Users = lazy(() => import("./pages/Users"));
+const VipCustomers = lazy(() => import("./pages/VipCustomers"));
 const ActivityLog = lazy(() => import("./pages/ActivityLog"));
 const navigation = [
   ["dashboard", "Tổng quan"],
@@ -22,6 +23,7 @@ const navigation = [
   ["categories", "Danh mục"],
   ["orders", "Đơn hàng"],
   ["users", "Người dùng"],
+  ["vip", "Khách hàng thân thiết"],
   ["news", "Tin tức"],
   ["activity-log", "Nhật ký hoạt động"],
   ["settings", "Cài đặt"],
@@ -123,7 +125,7 @@ export default function App() {
               aria-current={page === key ? "page" : undefined}
               onClick={() => navigate(key)}
             >
-              <Icon name={key} />
+              <Icon name={key === "vip" ? "users" : key} />
               {label}
               {page === key && <span className="nav-dot" />}
             </a>
@@ -186,6 +188,8 @@ export default function App() {
               />
             ) : page === "users" ? (
               <Users user={user} notify={setToast} />
+            ) : page === "vip" ? (
+              <VipCustomers />
             ) : page === "activity-log" ? (
               <ActivityLog />
             ) : (
