@@ -141,14 +141,30 @@ export default function Dashboard({ user, navigate }) {
           <option value="2">Năm 2026</option>
         </select>
       </div>
-      <Revenue key={period} period={period} />
+      <Revenue key={period} period={period} navigate={navigate} />
     </>
   );
 }
-function Revenue({ period }) {
+function Revenue({ period, navigate }) {
   const { data, loading, error, reload } = useResource(
     `${U}/admin/revenue-stats?period=${period}&activityLimit=0`,
   );
+
+  function handleSelectProduct(p) {
+    if (!p) return;
+    const term = (p.name || p.productId || "").trim();
+    try {
+      if (term) {
+        sessionStorage.setItem("storehub.product.search", term);
+      }
+    } catch {
+      // ignore storage errors
+    }
+    if (typeof navigate === "function") {
+      navigate("products");
+    }
+  }
+
   if (!data)
     return (
       <div className="card">
@@ -229,15 +245,32 @@ function Revenue({ period }) {
         <h3>Sản phẩm bán nhiều</h3>
         <p className="muted">Trong khoảng thời gian đã chọn</p>
         {(d.topProducts || []).map((p, i) => (
-          <div className="top-item" key={p.productId}>
+          <div
+            className="top-item clickable"
+            key={p.productId || i}
+            role="button"
+            tabIndex={0}
+            onClick={() => handleSelectProduct(p)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                handleSelectProduct(p);
+              }
+            }}
+            title={`Xem chi tiết sản phẩm: ${p.name || p.productId || "Sản phẩm"}`}
+            aria-label={`Xem chi tiết sản phẩm ${p.name || p.productId || ""}`}
+          >
             <span className="rank">0{i + 1}</span>
             <Photo src={p.image} name={p.name} />
-            <div>
+            <div className="top-item-info">
               <strong>{p.name}</strong>
               <small>
                 {p.soldCount ?? p.count ?? 0} sản phẩm · {money(p.revenue ?? p.totalRevenue ?? p.totalPrice ?? 0)}
               </small>
             </div>
+            <span className="top-item-arrow" aria-hidden="true">
+              <Icon name="arrow" size={14} />
+            </span>
           </div>
         ))}
         {!d.topProducts?.length && <State empty />}
