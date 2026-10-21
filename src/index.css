@@ -2956,7 +2956,7 @@ main {
 
 .order-filter-grid {
   display: grid !important;
-  grid-template-columns: 1.2fr 1.5fr 1fr 1fr !important;
+  grid-template-columns: 1fr 1.25fr 0.95fr 0.95fr 1.25fr !important;
   gap: 16px !important;
 }
 
@@ -2964,7 +2964,13 @@ main {
   grid-column: auto !important;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1280px) {
+  .order-filter-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 900px) {
   .order-filter-grid {
     grid-template-columns: 1fr 1fr !important;
   }
@@ -2974,6 +2980,9 @@ main {
   .order-filter-grid {
     grid-template-columns: 1fr !important;
   }
+}
+
+@media (max-width: 640px) {
   .order-tabs-wrapper {
     padding: 8px 10px 0;
   }
@@ -2995,4 +3004,118 @@ main {
   display: none !important;
   content: none !important;
 }
+
+/* US20 AC1: Hiển thị lý do hủy đơn hàng rõ ràng trên chi tiết đơn */
+.cancel-reason-alert {
+  margin: 16px 0;
+  padding: 14px 16px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-left: 4px solid #ef4444;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cancel-reason-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #991b1b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.cancel-reason-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.cancel-reason-content {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 13px;
+  color: #7f1d1d;
+  line-height: 1.5;
+  flex-wrap: wrap;
+}
+
+.cancel-reason-label {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.cancel-reason-text {
+  font-weight: 500;
+  word-break: break-word;
+}
+
+/* US20 AC1: Form nhập lý do hủy bắt buộc */
+.cancel-form-section {
+  margin-top: 14px;
+  padding: 16px;
+  background: #fff5f5;
+  border: 1px dashed #fca5a5;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: cancelFormSlide 0.2s ease-out;
+}
+
+@keyframes cancelFormSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.cancel-form-section .field span {
+  color: #991b1b;
+  font-weight: 600;
+}
+
+.cancel-form-section select,
+.cancel-form-section textarea {
+  width: 100%;
+  border: 1px solid #fca5a5;
+  border-radius: 6px;
+}
+
+.cancel-form-section textarea {
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.cancel-form-section select:focus,
+.cancel-form-section textarea:focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+}
+
+.cancel-error-msg {
+  margin: 0 !important;
+  padding: 8px 12px !important;
+  font-size: 12px !important;
+  border-radius: 6px !important;
+}
+
 
