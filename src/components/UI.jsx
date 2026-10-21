@@ -19,6 +19,8 @@ export function Icon({ name, size = 20 }) {
     logout: "M9 3H4v18h5 M10 12h11 M17 8l4 4-4 4",
     menu: "M3 6h18 M3 12h18 M3 18h18",
     arrow: "M5 12h14 M14 7l5 5-5 5",
+    arrowUp: "M12 19V5 M5 12l7-7 7 7",
+    arrowDown: "M12 5v14 M19 12l-7 7-7-7",
     check: "m5 12 4 4L19 6",
     money: "M3 5h18v14H3z M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8",
     lock: "M7 11V7a5 5 0 0 1 10 0v4 M5 11h14v10H5z",

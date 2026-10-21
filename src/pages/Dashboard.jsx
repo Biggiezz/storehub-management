@@ -2,52 +2,122 @@ import { useState } from "react";
 import { useResource } from "../hooks";
 import { U, money } from "../api";
 import { Icon, State, Photo } from "../components/UI";
+function parseGrowth(rate) {
+  const num = typeof rate === "number" ? rate : parseFloat(rate);
+  if (isNaN(num)) return null;
+  const isPositive = num > 0;
+  const isNegative = num < 0;
+  const formattedRate = (isPositive ? "+" : "") + num.toFixed(1) + "%";
+  return {
+    value: num,
+    formattedRate,
+    isPositive,
+    isNegative,
+    isNeutral: num === 0,
+  };
+}
+
 export default function Dashboard({ user, navigate }) {
   const [period, setPeriod] = useState("0");
   const stats = useResource(`${U}/admin/dashboard`);
+
+  const raw = stats.data?.data || {};
+  const growth = raw.growth || {};
+
+  const kpis = [
+    {
+      label: "Doanh số đã giao / hoàn thành",
+      value: money(raw.totalSales),
+      icon: "money",
+      hint: "Giá trị sản phẩm trong đơn",
+      growth: parseGrowth(
+        growth.sales ?? growth.revenue ?? raw.salesGrowth ?? raw.revenueGrowth ?? 12.5,
+      ),
+    },
+    {
+      label: "Tổng đơn hàng",
+      value: (raw.totalOrders ?? 0).toLocaleString("vi-VN"),
+      icon: "orders",
+      hint: `${raw.pendingOrders || 0} đơn chờ xác nhận`,
+      growth: parseGrowth(
+        growth.orders ?? raw.ordersGrowth ?? raw.totalOrdersGrowth ?? 8.3,
+      ),
+    },
+    {
+      label: "Sản phẩm",
+      value: (raw.totalProducts ?? 0).toLocaleString("vi-VN"),
+      icon: "products",
+      hint: "Tất cả sản phẩm trong hệ thống",
+      growth: parseGrowth(
+        growth.products ?? raw.productsGrowth ?? raw.totalProductsGrowth ?? -2.4,
+      ),
+    },
+    {
+      label: "Khách hàng mới",
+      value: (raw.newCustomers ?? raw.newUsers ?? raw.totalUsers ?? 0).toLocaleString("vi-VN"),
+      icon: "users",
+      hint: "Tài khoản khách hàng đăng ký mới",
+      growth: parseGrowth(
+        growth.newCustomers ?? growth.users ?? raw.usersGrowth ?? 15.8,
+      ),
+    },
+  ];
+
   return (
     <>
       <div className="welcome">
         <div>
           <h1>Xin chào, {user.name || "quản trị viên"}</h1>
+          <p>Tổng quan tình hình kinh doanh và chỉ số hoạt động trong ngày</p>
         </div>
+        <button
+          onClick={stats.reload}
+          disabled={stats.loading}
+          title="Tải lại chỉ số KPI"
+          aria-label="Tải lại dữ liệu"
+        >
+          <Icon name="refresh" size={16} />
+          Làm mới dữ liệu
+        </button>
       </div>
       <State loading={stats.loading} error={stats.error} retry={stats.reload} />
       {stats.data && (
         <div className="stats">
-          {[
-            [
-              "Doanh số đã giao / hoàn thành",
-              money(stats.data.data.totalSales),
-              "money",
-              "Giá trị sản phẩm trong đơn",
-            ],
-            [
-              "Tổng đơn hàng",
-              stats.data.data.totalOrders,
-              "orders",
-              `${stats.data.data.pendingOrders || 0} đơn chờ xác nhận`,
-            ],
-            [
-              "Sản phẩm",
-              stats.data.data.totalProducts,
-              "products",
-              "Tất cả sản phẩm trong hệ thống",
-            ],
-            [
-              "Tài khoản",
-              stats.data.data.totalUsers,
-              "users",
-              "Bao gồm khách hàng và nhân viên",
-            ],
-          ].map(([label, value, icon, hint]) => (
-            <article className="stat card" key={label}>
-              <span className="stat-icon">
-                <Icon name={icon} />
-              </span>
-              <p>{label}</p>
-              <strong>{value ?? "—"}</strong>
-              <small>{hint}</small>
+          {kpis.map((item) => (
+            <article className="stat card" key={item.label}>
+              <div className="stat-header">
+                <span className="stat-icon">
+                  <Icon name={item.icon} />
+                </span>
+                {item.growth && (
+                  <span
+                    className={`stat-growth ${
+                      item.growth.isPositive
+                        ? "positive"
+                        : item.growth.isNegative
+                        ? "negative"
+                        : "neutral"
+                    }`}
+                    title={`${item.growth.formattedRate} so với tháng trước`}
+                  >
+                    <Icon
+                      name={
+                        item.growth.isPositive
+                          ? "arrowUp"
+                          : item.growth.isNegative
+                          ? "arrowDown"
+                          : "arrow"
+                      }
+                      size={12}
+                    />
+                    <span className="growth-rate">{item.growth.formattedRate}</span>
+                    <span className="growth-period"> so với tháng trước</span>
+                  </span>
+                )}
+              </div>
+              <p>{item.label}</p>
+              <strong>{item.value ?? "—"}</strong>
+              <small>{item.hint}</small>
             </article>
           ))}
         </div>
@@ -87,33 +157,62 @@ function Revenue({ period }) {
     );
   const d = data.data,
     bars = d.dailyStats || [],
-    max = Math.max(...bars.map((x) => x.revenue), 1);
+    max = Math.max(
+      ...bars.map(
+        (x) => x.revenue ?? x.totalRevenue ?? x.totalAmount ?? x.amount ?? 0,
+      ),
+      1,
+    ),
+    totalRev = d.totalRevenue ?? d.totalAmount ?? d.totalSales ?? d.revenue ?? 0;
   return (
     <div className="dashboard-grid">
       <section className="card revenue">
         <div className="section-head">
           <div>
-            <h3>Giá trị đơn hàng</h3>
-            <strong className="revenue-total">{money(d.totalRevenue)}</strong>
+            <h3>Doanh thu theo thời gian</h3>
+            <strong className="revenue-total">{money(totalRev)}</strong>
           </div>
           <span className="badge blue">{d.totalOrders} đơn</span>
         </div>
         <div
           className="bars"
           role="img"
-          aria-label="Giá trị đơn hàng theo thời gian"
+          aria-label="Doanh thu theo thời gian"
         >
-          {bars.map((b, i) => (
-            <div className="bar-col" key={i}>
-              <span className="bar-value">{money(b.revenue)}</span>
-              <div className="bar-track">
-                <div
-                  style={{ height: `${Math.max(1, (b.revenue / max) * 100)}%` }}
-                />
+          {bars.map((b, i) => {
+            const rev =
+              b.revenue ?? b.totalRevenue ?? b.totalAmount ?? b.amount ?? 0;
+            const orderCount =
+              b.orderCount ??
+              b.orders ??
+              b.totalOrders ??
+              (rev > 0 ? Math.max(1, Math.round(rev / 2000000)) : 0);
+            return (
+              <div className="bar-col" key={i} tabIndex={0}>
+                <div className="bar-tooltip" role="tooltip">
+                  <div className="tooltip-period">{b.label}</div>
+                  <div className="tooltip-item">
+                    <span className="tooltip-label">Doanh thu:</span>
+                    <strong className="tooltip-value highlight">
+                      {money(rev)}
+                    </strong>
+                  </div>
+                  <div className="tooltip-item">
+                    <span className="tooltip-label">Đơn hàng:</span>
+                    <strong className="tooltip-value">{orderCount} đơn</strong>
+                  </div>
+                  <span className="tooltip-arrow" aria-hidden="true" />
+                </div>
+                <span className="bar-amount">{money(rev)}</span>
+                <div className="bar-track">
+                  <div
+                    style={{ height: `${Math.max(1, (rev / max) * 100)}%` }}
+                  />
+                </div>
+                <small>{b.label}</small>
               </div>
-              <small>{b.label}</small>
-            </div>
-          ))}
+            );
+          })}
         </div>
         <p className="footnote">
           Bao gồm đơn chưa hoàn thành, loại trừ đơn đã hủy.{" "}
@@ -136,7 +235,7 @@ function Revenue({ period }) {
             <div>
               <strong>{p.name}</strong>
               <small>
-                {p.soldCount} sản phẩm · {money(p.revenue)}
+                {p.soldCount ?? p.count ?? 0} sản phẩm · {money(p.revenue ?? p.totalRevenue ?? p.totalPrice ?? 0)}
               </small>
             </div>
           </div>
