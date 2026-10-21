@@ -2046,5 +2046,237 @@ tbody tr:hover {
   }
 }
 
+/* US11: Quick Stock Update & Edit Button */
+.stock-cell-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 3px 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.stock-cell-button:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.stock-cell-button:hover .stock-edit-icon {
+  color: #2563eb;
+  transform: scale(1.1);
+}
+
+.stock-edit-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  transition: all 0.15s ease;
+}
+
+.modal.modal-quick-stock {
+  width: 440px;
+  max-width: calc(100vw - 32px);
+}
+
+.quick-stock-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 24px;
+}
+
+.quick-stock-product-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+
+.quick-stock-product-info .photo {
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  border-radius: 8px;
+}
+
+.quick-stock-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.quick-stock-meta strong {
+  display: block;
+  font-size: 13.5px;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.quick-stock-sub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+.quick-stock-sub code {
+  background: #e2e8f0;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #334155;
+}
+
+.current-stock-val {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.quick-stock-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.quick-stock-field label span {
+  font-weight: 600;
+  font-size: 12.5px;
+  color: #334155;
+}
+
+.quick-stock-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.quick-stock-input-wrap input {
+  flex: 1;
+  font-size: 20px;
+  font-weight: 700;
+  text-align: center;
+  padding: 10px 12px;
+  border: 2px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.quick-stock-input-wrap input:focus {
+  border-color: #3b82f6;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.btn-stock-adjust {
+  width: 44px;
+  height: 44px;
+  font-size: 20px;
+  font-weight: 700;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.btn-stock-adjust:hover:not(:disabled) {
+  background: #e2e8f0;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
+.btn-stock-adjust:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.stock-warning {
+  display: flex;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  align-items: flex-start;
+}
+
+.stock-warning svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.stock-warning strong {
+  display: block;
+  font-size: 12.5px;
+  margin-bottom: 3px;
+}
+
+.stock-warning p {
+  margin: 0;
+  font-size: 11.5px;
+  opacity: 0.9;
+}
+
+.alert-out-of-stock {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+.alert-out-of-stock svg {
+  color: #dc2626;
+}
+
+.alert-low-stock {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+}
+
+.alert-low-stock svg {
+  color: #d97706;
+}
+
+.btn-detail-quick-stock {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #475569;
+  cursor: pointer;
+  margin-left: 8px;
+  transition: all 0.15s ease;
+}
+
+.btn-detail-quick-stock:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+  border-color: #94a3b8;
+}
+
+
 
 
