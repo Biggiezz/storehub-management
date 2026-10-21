@@ -2277,6 +2277,110 @@ tbody tr:hover {
   border-color: #94a3b8;
 }
 
+/* US12 AC1: Product Status Toggle Switch */
+.status-toggle-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
+}
+
+.status-toggle-switch {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  border-radius: 9999px;
+  background-color: #cbd5e1;
+  border: 1.5px solid transparent;
+  padding: 0;
+  cursor: pointer;
+  transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.2s ease,
+              border-color 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.status-toggle-switch:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25);
+}
+
+.status-toggle-switch.active {
+  background-color: #10b981;
+}
+
+.status-toggle-switch.active:hover {
+  background-color: #059669;
+}
+
+.status-toggle-switch.inactive {
+  background-color: #94a3b8;
+}
+
+.status-toggle-switch.inactive:hover {
+  background-color: #64748b;
+}
+
+.status-toggle-switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.status-toggle-switch .toggle-thumb {
+  position: absolute;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.status-toggle-switch.active .toggle-thumb {
+  transform: translateX(16px);
+}
+
+.status-toggle-switch.inactive .toggle-thumb {
+  transform: translateX(0);
+}
+
+.status-toggle-switch .toggle-spinner {
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid #94a3b8;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.status-toggle-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  letter-spacing: 0.2px;
+  transition: color 0.2s ease;
+}
+
+.status-toggle-label.active {
+  color: #059669;
+}
+
+.status-toggle-label.inactive {
+  color: #64748b;
+}
+
+.status-toggle-switch.loading {
+  cursor: wait;
+}
+
+
 
 
 
