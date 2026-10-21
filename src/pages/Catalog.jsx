@@ -984,6 +984,7 @@ function Editor({
                     multiple
                     accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
                     onChange={handleFilesSelected}
+                    onCancel={(e) => e.stopPropagation()}
                     style={{ display: "none" }}
                   />
                 </label>
