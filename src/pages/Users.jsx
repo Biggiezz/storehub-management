@@ -1,8 +1,60 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { U, request, query, date, money, isSuper, roleOf } from "../api";
 import { Icon, Photo, Badge, Modal, Field, State } from "../components/UI";
 import { useResource } from "../hooks";
 import { OrderDetail } from "./Orders";
+import { getCachedOrderSnapshot } from "../services/orderSearch";
+
+/**
+ * US24 AC1 & AC2: Bảng định nghĩa thứ hạng VIP Loyalty
+ * - Kim Cương: > 20 triệu hoặc > 10 đơn hoàn thành
+ * - Vàng: 10 - 20 triệu
+ * - Bạc: 5 - 10 triệu
+ * - Thành viên Đồng: < 5 triệu
+ */
+export const VIP_TIERS = {
+  diamond: {
+    key: "diamond",
+    name: "Kim Cương",
+    badgeClass: "vip-badge-diamond",
+    icon: "💎",
+    color: "#0369a1",
+    isVip: true,
+  },
+  gold: {
+    key: "gold",
+    name: "Vàng",
+    badgeClass: "vip-badge-gold",
+    icon: "👑",
+    color: "#854d0e",
+    isVip: true,
+  },
+  silver: {
+    key: "silver",
+    name: "Bạc",
+    badgeClass: "vip-badge-silver",
+    icon: "🥈",
+    color: "#334155",
+    isVip: true,
+  },
+  bronze: {
+    key: "bronze",
+    name: "Thành viên Đồng",
+    badgeClass: "vip-badge-bronze",
+    icon: "🥉",
+    color: "#9a3412",
+    isVip: false,
+  },
+};
+
+export function getVipTier(spent = 0, completedOrders = 0) {
+  const s = Number(spent) || 0;
+  const o = Number(completedOrders) || 0;
+  if (s > 20000000 || o > 10) return VIP_TIERS.diamond;
+  if (s >= 10000000) return VIP_TIERS.gold;
+  if (s >= 5000000) return VIP_TIERS.silver;
+  return VIP_TIERS.bronze;
+}
 
 function formatLastActive(lastActive, isOnline) {
   if (isOnline) return "Đang trực tuyến";
@@ -35,6 +87,15 @@ export default function Users({ user, notify }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // US24: State lưu dữ liệu đơn hàng & thống kê chi tiêu khách hàng thân thiết
+  const [userOrderStats, setUserOrderStats] = useState({});
+  const [allOrdersSnapshot, setAllOrdersSnapshot] = useState([]);
+
+  // US24 AC1: State bộ lọc phân hạng VIP Loyalty
+  const [vipTierFilter, setVipTierFilter] = useState("");
+  const [minSpentFilter, setMinSpentFilter] = useState("");
+  const [minOrdersFilter, setMinOrdersFilter] = useState("");
+
   // Modals state
   const [profileUserId, setProfileUserId] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -46,6 +107,55 @@ export default function Users({ user, notify }) {
 
   // Client-side Page Cache: key = `${filter}::${term}::${page}`
   const pageCacheRef = useRef({});
+
+  // US24: Tải dữ liệu toàn bộ đơn hàng để tính toán chi tiêu và số đơn hoàn thành cho khách
+  useEffect(() => {
+    getCachedOrderSnapshot()
+      .then((orders) => {
+        if (!Array.isArray(orders)) return;
+        setAllOrdersSnapshot(orders);
+        const statsMap = {};
+        for (const o of orders) {
+          const uid = o.user?._id || o.user?.id || o.userId;
+          if (!uid) continue;
+          if (!statsMap[uid]) {
+            statsMap[uid] = {
+              totalSpent: 0,
+              completedOrdersCount: 0,
+              totalOrdersCount: 0,
+            };
+          }
+          statsMap[uid].totalOrdersCount += 1;
+          const isDone =
+            o.status === "Đã hoàn thành" || o.status === "Đã giao hàng";
+          if (isDone) {
+            statsMap[uid].totalSpent +=
+              Number(o.totalAmount ?? o.totalPrice) || 0;
+            statsMap[uid].completedOrdersCount += 1;
+          }
+        }
+        setUserOrderStats(statsMap);
+      })
+      .catch(() => {});
+  }, []);
+
+  function getUserStats(x) {
+    const s = userOrderStats[x._id] || {};
+    return {
+      totalSpent: Number(
+        s.totalSpent ?? x.totalSpent ?? x.stats?.totalSpent ?? 0
+      ),
+      completedOrdersCount: Number(
+        s.completedOrdersCount ??
+          x.completedOrdersCount ??
+          x.stats?.completedOrdersCount ??
+          0
+      ),
+      totalOrdersCount: Number(
+        s.totalOrdersCount ?? x.totalOrdersCount ?? x.stats?.totalOrdersCount ?? 0
+      ),
+    };
+  }
 
   const loadUsers = useCallback(
     async (targetPage = page, queryTerm = term, typeFilter = filter, forceRefresh = false) => {
@@ -177,12 +287,166 @@ export default function Users({ user, notify }) {
     }
   }
 
+  // US24 AC1: Kiểm tra xem có bộ lọc VIP nào đang kích hoạt
+  const hasVipFilters = Boolean(
+    vipTierFilter || minSpentFilter !== "" || minOrdersFilter !== ""
+  );
+
+  function resetVipFilters() {
+    setVipTierFilter("");
+    setMinSpentFilter("");
+    setMinOrdersFilter("");
+  }
+
+  // US24 AC1: Lọc danh sách người dùng hiển thị theo thứ hạng và tiêu chí VIP
+  const displayedUsers = useMemo(() => {
+    if (!hasVipFilters) return users;
+    return users.filter((x) => {
+      const targetRole = roleOf(x);
+      const isStaffOrAdmin =
+        targetRole === "admin" ||
+        targetRole === "superadmin" ||
+        targetRole === "staff" ||
+        targetRole === "quảntrịviên" ||
+        targetRole === "quảnlýcửahàng";
+
+      const stats = getUserStats(x);
+      const tier = getVipTier(stats.totalSpent, stats.completedOrdersCount);
+
+      if (vipTierFilter) {
+        if (isStaffOrAdmin) return false;
+        if (tier.key !== vipTierFilter) return false;
+      }
+      if (minSpentFilter !== "") {
+        if (isStaffOrAdmin) return false;
+        if (stats.totalSpent < Number(minSpentFilter)) return false;
+      }
+      if (minOrdersFilter !== "") {
+        if (isStaffOrAdmin) return false;
+        if (stats.completedOrdersCount < Number(minOrdersFilter)) return false;
+      }
+      return true;
+    });
+  }, [
+    users,
+    userOrderStats,
+    vipTierFilter,
+    minSpentFilter,
+    minOrdersFilter,
+    hasVipFilters,
+  ]);
+
+  // US24 AC3: Xuất danh sách khách hàng thân thiết (VIP) kèm Email/SĐT sang file CSV
+  function handleExportVipCsv() {
+    try {
+      // Xác định tập danh sách khách hàng cần xuất (loại bỏ nhân viên/admin)
+      let targetList = users.filter((x) => {
+        const r = roleOf(x);
+        return !(
+          r === "admin" ||
+          r === "superadmin" ||
+          r === "staff" ||
+          r === "quảntrịviên" ||
+          r === "quảnlýcửahàng"
+        );
+      });
+
+      if (hasVipFilters) {
+        targetList = displayedUsers.filter((x) => {
+          const r = roleOf(x);
+          return !(
+            r === "admin" ||
+            r === "superadmin" ||
+            r === "staff" ||
+            r === "quảntrịviên" ||
+            r === "quảnlýcửahàng"
+          );
+        });
+      }
+
+      if (targetList.length === 0) {
+        notify?.("Không có khách hàng nào phù hợp để xuất danh sách.");
+        return;
+      }
+
+      const headers = [
+        "Mã khách hàng",
+        "Họ và tên",
+        "Email",
+        "Số điện thoại",
+        "Hạng thành viên",
+        "Nhóm VIP",
+        "Tổng chi tiêu (VNĐ)",
+        "Số đơn hoàn thành",
+        "Địa chỉ",
+        "Ngày tham gia",
+      ];
+
+      const escapeCsvCell = (val) => {
+        const str = String(val ?? "");
+        if (
+          str.includes(",") ||
+          str.includes('"') ||
+          str.includes("\n") ||
+          str.includes("\r")
+        ) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      const rows = targetList.map((x) => {
+        const stats = getUserStats(x);
+        const tier = getVipTier(stats.totalSpent, stats.completedOrdersCount);
+        return [
+          x._id,
+          x.name || "Chưa cập nhật",
+          x.email || "",
+          x.phone || "",
+          tier.name,
+          tier.isVip ? "Khách VIP" : "Thành viên thường",
+          stats.totalSpent,
+          stats.completedOrdersCount,
+          (x.address || "").replace(/\r?\n|\r/g, " "),
+          x.createdAt ? new Date(x.createdAt).toLocaleDateString("vi-VN") : "",
+        ];
+      });
+
+      // Tạo nội dung CSV chuẩn UTF-8 có BOM để Excel hiển thị tiếng Việt hoàn hảo
+      const csvContent =
+        "\uFEFF" +
+        [
+          headers.map(escapeCsvCell).join(","),
+          ...rows.map((row) => row.map(escapeCsvCell).join(",")),
+        ].join("\r\n");
+
+      const blob = new Blob([csvContent], {
+        type: "text/csv;charset=utf-8;",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+      a.href = url;
+      a.download = `StoreHub_VIP_Customers_${dateStr}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      notify?.(
+        `Đã xuất thành công danh sách ${targetList.length} khách hàng sang file CSV.`
+      );
+    } catch (err) {
+      notify?.("Lỗi khi xuất file CSV: " + (err.message || "Vui lòng thử lại."));
+    }
+  }
+
   const hasNext = users.length === 10;
 
   return (
     <>
       <div className="card">
-        {/* Toolbar: Tìm kiếm & Bộ lọc */}
+        {/* Toolbar: Tìm kiếm & Bộ lọc vai trò & Nút Export CSV */}
         <div className="toolbar">
           <form
             className="searchbox"
@@ -226,14 +490,93 @@ export default function Users({ user, notify }) {
             <option value="customer">Khách hàng</option>
             <option value="staff">Nhân viên / Quản trị</option>
           </select>
+
+          {/* US24 AC3: Nút Xuất danh sách VIP (Export CSV) */}
+          <button
+            type="button"
+            className="export-csv-btn"
+            onClick={handleExportVipCsv}
+            title="Xuất file CSV danh sách khách hàng thân thiết kèm Email/SĐT để phục vụ gửi voucher tri ân"
+          >
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span>Xuất danh sách VIP (CSV)</span>
+          </button>
+        </div>
+
+        {/* US24 AC1: Thanh bộ lọc phân hạng khách hàng thân thiết (VIP Loyalty) */}
+        <div className="vip-filter-toolbar">
+          <span className="vip-filter-label">
+            <span>Phân hạng VIP:</span>
+          </span>
+          <div className="vip-filter-inputs">
+            <select
+              value={vipTierFilter}
+              aria-label="Lọc theo hạng VIP"
+              onChange={(e) => setVipTierFilter(e.target.value)}
+            >
+              <option value="">Tất cả hạng thành viên</option>
+              <option value="diamond">
+                💎 Kim Cương (&gt; 20 triệu hoặc &gt; 10 đơn)
+              </option>
+              <option value="gold">👑 Vàng (10 - 20 triệu)</option>
+              <option value="silver">🥈 Bạc (5 - 10 triệu)</option>
+              <option value="bronze">🥉 Thành viên Đồng (&lt; 5 triệu)</option>
+            </select>
+
+            <input
+              type="number"
+              min="0"
+              step="500000"
+              value={minSpentFilter}
+              onChange={(e) => setMinSpentFilter(e.target.value)}
+              placeholder="Chi tiêu tối thiểu (VNĐ)…"
+              title="Lọc theo chi tiêu tích lũy tối thiểu (VNĐ)"
+            />
+
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={minOrdersFilter}
+              onChange={(e) => setMinOrdersFilter(e.target.value)}
+              placeholder="Số đơn tối thiểu…"
+              title="Lọc theo số đơn hoàn thành tối thiểu"
+            />
+
+            {hasVipFilters && (
+              <button
+                type="button"
+                className="vip-filter-clear-btn"
+                onClick={resetVipFilters}
+                title="Xóa bộ lọc phân hạng VIP"
+              >
+                Xóa lọc VIP
+              </button>
+            )}
+          </div>
         </div>
 
         {/* List Heading */}
         <div className="list-heading">
           <span>
-            {users.length > 0
-              ? `${users.length} người dùng trong trang này · Trang ${page}`
+            {displayedUsers.length > 0
+              ? `${displayedUsers.length} người dùng hiển thị · Trang ${page}`
               : `Trang ${page}`}
+            {hasVipFilters && " (Đang áp dụng bộ lọc VIP)"}
           </span>
           <div className="actions">
             <button
@@ -250,12 +593,12 @@ export default function Users({ user, notify }) {
         <State
           loading={loading}
           error={error}
-          empty={!loading && !error && users.length === 0}
+          empty={!loading && !error && displayedUsers.length === 0}
           retry={() => loadUsers(page, term, filter, true)}
         />
 
         {/* Bảng danh sách người dùng */}
-        {!loading && !error && users.length > 0 && (
+        {!loading && !error && displayedUsers.length > 0 && (
           <div className="table-wrap">
             <table>
               <thead>
@@ -269,12 +612,21 @@ export default function Users({ user, notify }) {
                 </tr>
               </thead>
               <tbody>
-                {users.map((x) => {
+                {displayedUsers.map((x) => {
                   const isSelf = user?._id === x._id || user?.id === x._id;
                   const targetRole = roleOf(x);
-                  const isTargetSuper = targetRole === "superadmin" || targetRole === "quảntrịviêntốicao";
-                  const canManageLock = isSuper(user) && !isSelf && !isTargetSuper;
+                  const isTargetSuper =
+                    targetRole === "superadmin" ||
+                    targetRole === "quảntrịviêntốicao";
+                  const canManageLock =
+                    isSuper(user) && !isSelf && !isTargetSuper;
                   const roleInfo = getRoleBadge(x.role);
+                  const isCustomer = roleInfo.label === "Khách hàng";
+                  const stats = getUserStats(x);
+                  const tier = getVipTier(
+                    stats.totalSpent,
+                    stats.completedOrdersCount
+                  );
 
                   return (
                     <tr key={x._id}>
@@ -287,19 +639,61 @@ export default function Users({ user, notify }) {
                         >
                           <Photo src={x.image} name={x.name || x.email} />
                           <div>
-                            <strong>
-                              {x.name || "—"} {isSelf && <small style={{ color: "#3568e8" }}>(Bạn)</small>}
-                            </strong>
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                flexWrap: "wrap",
+                              }}
+                            >
+                              <strong>
+                                {x.name || "—"}{" "}
+                                {isSelf && (
+                                  <small style={{ color: "#3568e8" }}>
+                                    (Bạn)
+                                  </small>
+                                )}
+                              </strong>
+                              {/* US24 AC2: Hiển thị Huy hiệu phân hạng (VIP Badge) ngay cạnh tên khách hàng */}
+                              {isCustomer && (
+                                <span
+                                  className={`vip-badge ${tier.badgeClass}`}
+                                  title={`Hạng ${tier.name} · Chi tiêu: ${money(stats.totalSpent)} · ${stats.completedOrdersCount} đơn hoàn thành`}
+                                >
+                                  <span className="vip-badge-icon">
+                                    {tier.icon}
+                                  </span>
+                                  {tier.name}
+                                </span>
+                              )}
+                            </div>
                             <small>{x.email || "—"}</small>
                           </div>
                         </div>
                       </td>
-                      <td>{x.phone || "—"}</td>
+                      <td>
+                        {x.phone || "—"}
+                        {isCustomer && (
+                          <small
+                            className="vip-stats-subtext"
+                            title="Tổng chi tiêu tích lũy và số đơn hoàn thành"
+                          >
+                            {money(stats.totalSpent)} · {stats.completedOrdersCount} đơn
+                          </small>
+                        )}
+                      </td>
                       <td>
                         <Badge tone={roleInfo.tone}>{roleInfo.label}</Badge>
                       </td>
                       <td>
-                        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "4px",
+                          }}
+                        >
                           <span
                             style={{
                               fontSize: "11px",
@@ -315,17 +709,28 @@ export default function Users({ user, notify }) {
                                 width: "7px",
                                 height: "7px",
                                 borderRadius: "50%",
-                                backgroundColor: x.isOnline ? "#16a34a" : "#94a3b8",
+                                backgroundColor: x.isOnline
+                                  ? "#16a34a"
+                                  : "#94a3b8",
                                 display: "inline-block",
-                                boxShadow: x.isOnline ? "0 0 0 2px #dcfce7" : "none",
+                                boxShadow: x.isOnline
+                                  ? "0 0 0 2px #dcfce7"
+                                  : "none",
                               }}
                             />
                             {formatLastActive(x.lastActive, !!x.isOnline)}
                           </span>
                           {x.isBlocked && (
-                            <span title={x.blockReason ? `Lý do: ${x.blockReason}` : "Tài khoản bị khóa"}>
+                            <span
+                              title={
+                                x.blockReason
+                                  ? `Lý do: ${x.blockReason}`
+                                  : "Tài khoản bị khóa"
+                              }
+                            >
                               <Badge tone="red">
-                                Đã khóa {x.blockReason ? `(${x.blockReason})` : ""}
+                                Đã khóa{" "}
+                                {x.blockReason ? `(${x.blockReason})` : ""}
                               </Badge>
                             </span>
                           )}
