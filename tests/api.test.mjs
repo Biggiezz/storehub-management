@@ -8,12 +8,20 @@ import {
   request,
   setSession,
   toSlug,
+  getCategoryOverrides,
+  saveCategoryOverride,
 } from "../src/api.js";
 const memory = new Map();
 globalThis.sessionStorage = {
   getItem: (k) => memory.get(k),
   setItem: (k, v) => memory.set(k, v),
   removeItem: (k) => memory.delete(k),
+};
+const localMemory = new Map();
+globalThis.localStorage = {
+  getItem: (k) => localMemory.get(k),
+  setItem: (k, v) => localMemory.set(k, v),
+  removeItem: (k) => localMemory.delete(k),
 };
 globalThis.window = new EventTarget();
 test("customer cannot enter admin; Vietnamese roles are normalized", () => {
@@ -53,6 +61,16 @@ test("toSlug converts Vietnamese with accents and symbols to SEO slugs correctly
   assert.equal(toSlug("Thời Trang Nam - Nữ & Phụ Kiện 2024!"), "thoi-trang-nam-nu-phu-kien-2024");
   assert.equal(toSlug(""), "");
   assert.equal(toSlug(null), "");
+});
+test("saveCategoryOverride preserves and updates category isActive status", () => {
+  saveCategoryOverride("cat-123", { name: "Điện thoại", isActive: false });
+  let overrides = getCategoryOverrides();
+  assert.equal(overrides["cat-123"].isActive, false);
+  assert.equal(overrides["cat-123"].name, "Điện thoại");
+
+  saveCategoryOverride("cat-123", { isActive: true });
+  overrides = getCategoryOverrides();
+  assert.equal(overrides["cat-123"].isActive, true);
 });
 test("JSON and multipart use correct authorization/body headers", async () => {
   setSession({ token: "test-token", user: { role: "admin" } });

@@ -111,7 +111,7 @@ export default function App() {
             SH
           </span>
           <span>
-            store<span className="brand-light">hub</span>
+            Store<span className="brand-light">Hub</span>
             <small>ADMIN WORKSPACE</small>
           </span>
         </a>

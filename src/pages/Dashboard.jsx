@@ -76,7 +76,6 @@ export default function Dashboard({ user, navigate }) {
           title="Tải lại chỉ số KPI"
           aria-label="Tải lại dữ liệu"
         >
-          <Icon name="refresh" size={16} />
           Làm mới dữ liệu
         </button>
       </div>
