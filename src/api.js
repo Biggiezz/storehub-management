@@ -123,6 +123,7 @@ export const date = (value) =>
 export function imageUrl(value) {
   if (!value) return "";
   if (/^https?:\/\//i.test(value)) return value;
+  if (/^data:image\//i.test(value) || /^blob:/i.test(value)) return value;
   if (/^[a-z]+:/i.test(value) || value.startsWith("//")) return "";
   return `${API_BASE}/${value.replace(/^\//, "")}`;
 }

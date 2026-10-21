@@ -520,6 +520,15 @@ function CatalogRows({
     </>
   );
 }
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 function Editor({
   kind,
   c,
@@ -533,7 +542,131 @@ function Editor({
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [colors, setColors] = useState(item.colors || []);
+
   const edit = !!item._id;
+
+  // Khởi tạo danh sách ảnh Gallery ban đầu nếu là sản phẩm
+  const [galleryImages, setGalleryImages] = useState(() => {
+    if (kind !== "products" || !item) return [];
+    const list = [];
+    if (item.image) {
+      list.push({ url: item.image, name: "Ảnh chính hiện tại", isMain: true, isExisting: true });
+    }
+    let existingImages = item.images;
+    if (typeof existingImages === "string") {
+      try {
+        existingImages = JSON.parse(existingImages);
+      } catch {
+        existingImages = [existingImages];
+      }
+    }
+    if (Array.isArray(existingImages)) {
+      existingImages.forEach((img, i) => {
+        if (img && img !== item.image && !list.some((x) => x.url === img)) {
+          list.push({ url: img, name: `Ảnh phụ ${i + 1}`, isMain: false, isExisting: true });
+        }
+      });
+    }
+    return list;
+  });
+
+  const [urlInput, setUrlInput] = useState("");
+  const [uploadError, setUploadError] = useState("");
+
+  // Dọn dẹp object URLs khi unmount
+  useEffect(() => {
+    return () => {
+      galleryImages.forEach((img) => {
+        if (img.file && img.previewUrl) {
+          try {
+            URL.revokeObjectURL(img.previewUrl);
+          } catch {}
+        }
+      });
+    };
+  }, []);
+
+  function handleFilesSelected(e) {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setUploadError("");
+
+    const newItems = [];
+    for (const file of files) {
+      // 1. Kiểm tra dung lượng không vượt quá 5MB
+      if (file.size > 5 * 1024 * 1024) {
+        setUploadError(
+          `Ảnh "${file.name}" (${(file.size / (1024 * 1024)).toFixed(
+            1,
+          )}MB) vượt quá dung lượng tối đa 5MB. Vui lòng chọn ảnh khác.`,
+        );
+        e.target.value = "";
+        return;
+      }
+      // 2. Kiểm tra định dạng ảnh
+      if (!file.type.startsWith("image/")) {
+        setUploadError(`Tệp "${file.name}" không phải là định dạng hình ảnh hợp lệ.`);
+        e.target.value = "";
+        return;
+      }
+      const previewUrl = URL.createObjectURL(file);
+      newItems.push({
+        file,
+        previewUrl,
+        name: file.name,
+        isMain: galleryImages.length === 0 && newItems.length === 0,
+      });
+    }
+
+    setGalleryImages((prev) => [...prev, ...newItems]);
+    e.target.value = "";
+  }
+
+  function handleAddUrl() {
+    const trimmed = urlInput.trim();
+    if (!trimmed) return;
+    if (!/^https?:\/\/.+/i.test(trimmed)) {
+      setUploadError("Vui lòng nhập đường dẫn URL hình ảnh hợp lệ (bắt đầu bằng http:// hoặc https://).");
+      return;
+    }
+    setUploadError("");
+    setGalleryImages((prev) => [
+      ...prev,
+      {
+        url: trimmed,
+        previewUrl: trimmed,
+        name: "Ảnh từ URL",
+        isMain: prev.length === 0,
+      },
+    ]);
+    setUrlInput("");
+  }
+
+  function removeImage(idx) {
+    setGalleryImages((prev) => {
+      const target = prev[idx];
+      if (target?.file && target?.previewUrl) {
+        try {
+          URL.revokeObjectURL(target.previewUrl);
+        } catch {}
+      }
+      const updated = prev.filter((_, i) => i !== idx);
+      if (target?.isMain && updated.length > 0) {
+        updated[0].isMain = true;
+      }
+      return updated;
+    });
+  }
+
+  function setMainImage(idx) {
+    setGalleryImages((prev) =>
+      prev.map((item, i) => ({
+        ...item,
+        isMain: i === idx,
+      })),
+    );
+  }
+
   async function submit(e) {
     e.preventDefault();
     setError("");
@@ -543,9 +676,46 @@ function Editor({
       if (!form.get("image")?.size) form.delete("image");
       let body = form;
       if (kind === "products") {
+        const price = Number(form.get("price"));
+        const costPrice = Number(form.get("costPrice"));
+        if (isNaN(price) || price <= 0) {
+          throw new Error("Giá bán phải là một số dương lớn hơn 0.");
+        }
+        if (isNaN(costPrice) || costPrice <= 0) {
+          throw new Error("Giá vốn phải là một số dương lớn hơn 0.");
+        }
+        form.set("price", String(price));
+        form.set("costPrice", String(costPrice));
+
         if (colors.some((x) => !x.name.trim() || !/^#[a-f\d]{6}$/i.test(x.hex)))
           throw new Error("Mỗi màu cần tên và mã HEX hợp lệ.");
         form.set("colors", JSON.stringify(colors));
+
+        if (galleryImages.length === 0 && !edit) {
+          throw new Error("Vui lòng tải lên hoặc thêm ít nhất một ảnh sản phẩm.");
+        }
+
+        // Chọn ảnh chính gửi cho backend trường 'image'
+        const mainImg = galleryImages.find((x) => x.isMain) || galleryImages[0];
+        if (mainImg?.file) {
+          form.set("image", mainImg.file);
+        } else if (mainImg?.url) {
+          form.set("image", mainImg.url);
+        }
+
+        // Danh sách URL ảnh lưu vào trường 'images'
+        const urlList = [];
+        for (const img of galleryImages) {
+          if (img.url && !img.file) {
+            urlList.push(img.url);
+          } else if (img.file && img !== mainImg) {
+            try {
+              const dataUrl = await fileToDataUrl(img.file);
+              urlList.push(dataUrl);
+            } catch {}
+          }
+        }
+        form.set("images", JSON.stringify(urlList));
       }
       await request(c.base + (edit ? c.update + item._id : c.add), {
         method: edit ? "PUT" : "POST",
@@ -558,15 +728,18 @@ function Editor({
       setBusy(false);
     }
   }
+
   const choices =
     categories.some((x) => x._id === item.category?._id) || !item.category?._id
       ? categories
       : [...categories, item.category];
+
   return (
     <Modal
       title={`${edit ? "Chỉnh sửa" : "Thêm"} ${c.singular}`}
       close={close}
       busy={busy}
+      className={kind === "products" ? "modal-wide" : ""}
     >
       <form onSubmit={submit}>
         <fieldset disabled={busy} className="modal-body form-grid">
@@ -597,15 +770,28 @@ function Editor({
                   defaultValue={item.stock ?? 0}
                 />
               </div>
-              <Field
-                label="Giá bán (VNĐ) *"
-                name="price"
-                type="number"
-                min="1"
-                step="1"
-                required
-                defaultValue={item.price || ""}
-              />
+              <div className="two-col">
+                <Field
+                  label="Giá bán (VNĐ) *"
+                  name="price"
+                  type="number"
+                  min="1"
+                  step="1"
+                  required
+                  defaultValue={item.price || ""}
+                  placeholder="VD: 16000000"
+                />
+                <Field
+                  label="Giá vốn (VNĐ) *"
+                  name="costPrice"
+                  type="number"
+                  min="1"
+                  step="1"
+                  required
+                  defaultValue={item.costPrice || item.originalPrice || ""}
+                  placeholder="VD: 11000000"
+                />
+              </div>
               <Field label="Danh mục *">
                 <select
                   name="category"
@@ -640,6 +826,7 @@ function Editor({
                   name="description"
                   defaultValue={item.description || ""}
                   rows={4}
+                  placeholder="Nhập mô tả chi tiết sản phẩm..."
                 />
               </Field>
               <div className="field">
@@ -779,6 +966,95 @@ function Editor({
                 </Field>
               )}
             </>
+          ) : kind === "products" ? (
+            <div className="field product-gallery-uploader">
+              <span className="gallery-header-label">
+                Thư viện hình ảnh sản phẩm {!edit && galleryImages.length === 0 ? "*" : ""}
+              </span>
+              <p className="muted" style={{ margin: "3px 0 10px", fontSize: "11px" }}>
+                Tải lên nhiều hình ảnh (tối đa 5MB/ảnh) hoặc thêm link URL. Ảnh đầu tiên hoặc ảnh được đánh dấu sẽ làm ảnh đại diện chính.
+              </p>
+
+              <div className="gallery-uploader-toolbar">
+                <label className="btn-upload-file">
+                  <Icon name="photo" size={15} />
+                  <span>Chọn ảnh từ máy tính (nhiều ảnh)</span>
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+                    onChange={handleFilesSelected}
+                    style={{ display: "none" }}
+                  />
+                </label>
+
+                <div className="url-input-group">
+                  <input
+                    type="url"
+                    placeholder="Hoặc dán URL hình ảnh (https://...)..."
+                    value={urlInput}
+                    onChange={(e) => setUrlInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddUrl();
+                      }
+                    }}
+                  />
+                  <button type="button" onClick={handleAddUrl}>
+                    + Thêm URL
+                  </button>
+                </div>
+              </div>
+
+              {uploadError && (
+                <p className="error" style={{ margin: "8px 0 0", fontSize: "12px" }}>
+                  {uploadError}
+                </p>
+              )}
+
+              {galleryImages.length > 0 ? (
+                <div className="gallery-preview-grid">
+                  {galleryImages.map((img, idx) => (
+                    <div
+                      key={idx}
+                      className={`gallery-preview-card ${img.isMain ? "is-main" : ""}`}
+                    >
+                      <img
+                        src={img.previewUrl || imageUrl(img.url)}
+                        alt={img.name || `Ảnh ${idx + 1}`}
+                      />
+                      <button
+                        type="button"
+                        className="btn-remove-thumb"
+                        onClick={() => removeImage(idx)}
+                        title="Xóa ảnh này"
+                        aria-label="Xóa ảnh"
+                      >
+                        ×
+                      </button>
+                      {img.isMain ? (
+                        <span className="badge-main-photo">Ảnh chính</span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn-set-main"
+                          onClick={() => setMainImage(idx)}
+                        >
+                          Đặt làm chính
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="gallery-empty-state">
+                  <Icon name="photo" size={28} />
+                  <span>Chưa có hình ảnh nào trong thư viện</span>
+                  <small>Định dạng JPG, PNG, WEBP, GIF · Tối đa 5 MB mỗi ảnh</small>
+                </div>
+              )}
+            </div>
           ) : (
             <>
               {item.image && (
