@@ -41,6 +41,7 @@ export default function Users({ user, notify }) {
   const [lockModalOpen, setLockModalOpen] = useState(false);
   const [lockReason, setLockReason] = useState("");
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editError, setEditError] = useState("");
   const [busy, setBusy] = useState(false);
 
   // Client-side Page Cache: key = `${filter}::${term}::${page}`
@@ -131,30 +132,45 @@ export default function Users({ user, notify }) {
     }
   }
 
-  // Chỉnh sửa thông tin người dùng (US29 / US32)
+  // Chỉnh sửa thông tin người dùng (US23 AC2 & AC3)
   async function handleSaveEdit(e) {
     e.preventDefault();
     if (!selectedUser) return;
-    setBusy(true);
     const form = new FormData(e.currentTarget);
+    const phone = form.get("phone")?.trim() || "";
+    const phoneRegex = /^(0[3|5|7|8|9])[0-9]{8}$/;
+    if (phone && !phoneRegex.test(phone)) {
+      setEditError(
+        "Số điện thoại không đúng định dạng Việt Nam. Vui lòng nhập 10 chữ số bắt đầu bằng 03, 05, 07, 08 hoặc 09 (VD: 0912345678)."
+      );
+      return;
+    }
+    setEditError("");
+    setBusy(true);
     const updateData = {
       name: form.get("name")?.trim(),
-      phone: form.get("phone")?.trim() || "",
+      phone,
       address: form.get("address")?.trim() || "",
     };
     if (isSuper(user)) {
       updateData.role = form.get("role");
     }
     try {
-      await request(U + `/update-user/${selectedUser._id}`, {
+      const res = await request(U + `/update-user/${selectedUser._id}`, {
         method: "PUT",
         body: updateData,
       });
       notify("Đã cập nhật thông tin người dùng thành công.");
-      updateUserInCacheAndState(selectedUser._id, updateData);
+      const nextUpdatedAt = res?.data?.updatedAt || new Date().toISOString();
+      updateUserInCacheAndState(selectedUser._id, {
+        ...updateData,
+        updatedAt: nextUpdatedAt,
+      });
       setEditModalOpen(false);
       setSelectedUser(null);
+      setEditError("");
     } catch (err) {
+      setEditError(err.message || "Cập nhật thất bại.");
       notify(err.message || "Cập nhật thất bại.");
     } finally {
       setBusy(false);
@@ -328,6 +344,7 @@ export default function Users({ user, notify }) {
                           <button
                             onClick={() => {
                               setSelectedUser(x);
+                              setEditError("");
                               setEditModalOpen(true);
                             }}
                             title="Chỉnh sửa thông tin"
@@ -456,7 +473,7 @@ export default function Users({ user, notify }) {
         </Modal>
       )}
 
-      {/* Modal Chỉnh sửa thông tin người dùng */}
+      {/* Modal Chỉnh sửa thông tin người dùng (US23 AC2 & AC3) */}
       {editModalOpen && selectedUser && (
         <Modal
           title="Chỉnh sửa người dùng"
@@ -464,12 +481,18 @@ export default function Users({ user, notify }) {
             if (!busy) {
               setEditModalOpen(false);
               setSelectedUser(null);
+              setEditError("");
             }
           }}
           busy={busy}
         >
           <form onSubmit={handleSaveEdit}>
             <div className="modal-body form-grid">
+              {editError && (
+                <p className="error" role="alert">
+                  {editError}
+                </p>
+              )}
               <Field label="Họ và tên *">
                 <input
                   name="name"
@@ -479,15 +502,32 @@ export default function Users({ user, notify }) {
                 />
               </Field>
               <Field label="Email (Không thể thay đổi)">
-                <input value={selectedUser.email || ""} disabled />
+                <input value={selectedUser.email || ""} disabled readOnly />
               </Field>
               <div className="two-col">
                 <Field label="Số điện thoại">
                   <input
                     name="phone"
+                    type="tel"
                     defaultValue={selectedUser.phone || ""}
                     placeholder="VD: 0912345678"
+                    pattern="^(0[3|5|7|8|9])[0-9]{8}$"
+                    title="Số điện thoại phải gồm 10 chữ số và bắt đầu bằng 03, 05, 07, 08 hoặc 09"
+                    onInvalid={(e) => {
+                      if (e.target.validity.patternMismatch) {
+                        e.target.setCustomValidity(
+                          "Số điện thoại không đúng định dạng Việt Nam. Vui lòng nhập 10 chữ số bắt đầu bằng 03, 05, 07, 08 hoặc 09 (VD: 0912345678)."
+                        );
+                      }
+                    }}
+                    onInput={(e) => {
+                      e.target.setCustomValidity("");
+                      if (editError) setEditError("");
+                    }}
                   />
+                  <small className="muted" style={{ fontSize: "11px", marginTop: "4px" }}>
+                    Định dạng: 10 chữ số (đầu số 03, 05, 07, 08, 09)
+                  </small>
                 </Field>
                 <Field label="Vai trò hệ thống">
                   {isSuper(user) ? (
@@ -497,7 +537,7 @@ export default function Users({ user, notify }) {
                       <option value="superadmin">Quản trị tối cao (superadmin)</option>
                     </select>
                   ) : (
-                    <input value={selectedUser.role || "customer"} disabled />
+                    <input value={selectedUser.role || "customer"} disabled readOnly />
                   )}
                 </Field>
               </div>
@@ -508,6 +548,26 @@ export default function Users({ user, notify }) {
                   placeholder="Nhập địa chỉ..."
                 />
               </Field>
+              <div className="two-col">
+                <Field label="Ngày tạo tài khoản">
+                  <input
+                    value={date(selectedUser.createdAt)}
+                    disabled
+                    readOnly
+                  />
+                </Field>
+                <Field label="Chỉnh sửa gần nhất (updatedAt)">
+                  <input
+                    value={
+                      selectedUser.updatedAt
+                        ? date(selectedUser.updatedAt)
+                        : "Chưa có lịch sử cập nhật"
+                    }
+                    disabled
+                    readOnly
+                  />
+                </Field>
+              </div>
             </div>
             <footer>
               <button
@@ -516,6 +576,7 @@ export default function Users({ user, notify }) {
                 onClick={() => {
                   setEditModalOpen(false);
                   setSelectedUser(null);
+                  setEditError("");
                 }}
               >
                 Hủy
@@ -605,6 +666,10 @@ export function CustomerProfileModal({ userId, user, close, notify }) {
                     <div className="customer-meta-item">
                       <span>Ngày tham gia:</span>
                       <strong>{date(profile.createdAt)}</strong>
+                    </div>
+                    <div className="customer-meta-item">
+                      <span>Chỉnh sửa gần nhất:</span>
+                      <strong>{profile.updatedAt ? date(profile.updatedAt) : "Chưa cập nhật"}</strong>
                     </div>
                   </div>
                 </div>
