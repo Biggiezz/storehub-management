@@ -75,6 +75,12 @@ export function resolveBarRevenue(b, bars = [], totalRev = 0) {
       return raw * 1000000;
     }
   }
+
+  // 4. Fallback phòng ngừa khi raw < 2.000 (backend trả về đơn vị triệu đồng):
+  if (raw > 0 && raw < 2000) {
+    return raw * 1000000;
+  }
+
   return raw;
 }
 
@@ -129,13 +135,7 @@ export function resolveBarOrders(
           return m === targetMonth;
         });
 
-        // Ưu tiên đếm các đơn đã giao hàng / đã hoàn thành (tạo ra doanh số hoàn thành)
-        const completed = inMonth.filter((o) =>
-          ["Đã hoàn thành", "Đã giao hàng"].includes(o.status),
-        );
-        if (completed.length > 0) return completed.length;
-
-        // Nếu không có đơn hoàn thành nhưng có đơn hợp lệ (chưa hủy)
+        // Đếm các đơn hàng hợp lệ (loại trừ đơn đã hủy), đồng nhất với quy tắc tính doanh thu của biểu đồ
         const valid = inMonth.filter((o) => o.status !== "Đã hủy");
         if (valid.length > 0) return valid.length;
         if (inMonth.length > 0) return inMonth.length;
@@ -168,12 +168,9 @@ export function resolveBarOrders(
           vnDate.getUTCDay() === targetDay
         );
       });
-      const completed = inDayOfWeek.filter((o) =>
-        ["Đã hoàn thành", "Đã giao hàng"].includes(o.status),
-      );
-      if (completed.length > 0) return completed.length;
       const valid = inDayOfWeek.filter((o) => o.status !== "Đã hủy");
       if (valid.length > 0) return valid.length;
+      if (inDayOfWeek.length > 0) return inDayOfWeek.length;
     }
 
     // C. Nhãn ngày cụ thể: e.g. "21/10" hoặc "21"
@@ -191,12 +188,9 @@ export function resolveBarOrders(
         if (targetMonth) return d === targetDate && m === targetMonth;
         return d === targetDate;
       });
-      const completed = inDay.filter((o) =>
-        ["Đã hoàn thành", "Đã giao hàng"].includes(o.status),
-      );
-      if (completed.length > 0) return completed.length;
       const valid = inDay.filter((o) => o.status !== "Đã hủy");
       if (valid.length > 0) return valid.length;
+      if (inDay.length > 0) return inDay.length;
     }
   }
 
