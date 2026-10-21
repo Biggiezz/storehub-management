@@ -1,6 +1,5 @@
 import { useEffect, useState, lazy, Suspense } from "react";
 import {
-  API_BASE,
   U,
   request,
   getSession,
@@ -8,7 +7,8 @@ import {
   isAdmin,
   isCanonicalAdmin,
 } from "./api";
-import { Field, Icon, State } from "./components/UI";
+import { Icon, State } from "./components/UI";
+import Login from "./components/auth/Login";
 import logo from "./assets/logo.png";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -18,6 +18,7 @@ const Settings = lazy(() => import("./pages/Settings"));
 const Users = lazy(() => import("./pages/Users"));
 const VipCustomers = lazy(() => import("./pages/VipCustomers"));
 const ActivityLog = lazy(() => import("./pages/ActivityLog"));
+
 const navigation = [
   ["dashboard", "Tổng quan"],
   ["products", "Sản phẩm"],
@@ -29,15 +30,18 @@ const navigation = [
   ["activity-log", "Nhật ký hoạt động"],
   ["settings", "Cài đặt"],
 ];
+
 function initialPage() {
   const page = window.location.hash.slice(1);
   return navigation.some(([key]) => key === page) ? page : "dashboard";
 }
+
 export default function App() {
-  const [session, updateSession] = useState(getSession),
-    [page, setPage] = useState(initialPage),
-    [menu, setMenu] = useState(false),
-    [toast, setToast] = useState("");
+  const [session, updateSession] = useState(getSession);
+  const [page, setPage] = useState(initialPage);
+  const [menu, setMenu] = useState(false);
+  const [toast, setToast] = useState("");
+
   useEffect(() => {
     const expired = () => {
       updateSession(null);
@@ -51,17 +55,20 @@ export default function App() {
       window.removeEventListener("hashchange", hash);
     };
   }, []);
+
   useEffect(() => {
     if (toast) {
       const timer = setTimeout(() => setToast(""), 5500);
       return () => clearTimeout(timer);
     }
   }, [toast]);
+
   function navigate(key) {
     window.location.hash = key;
     setPage(key);
     setMenu(false);
   }
+
   async function logout() {
     const current = getSession();
     setSession(null);
@@ -72,7 +79,8 @@ export default function App() {
       /* Local logout remains effective without network. */
     }
   }
-  if (!session || !isAdmin(session.user))
+
+  if (!session || !isAdmin(session.user)) {
     return (
       <>
         <Login
@@ -89,10 +97,13 @@ export default function App() {
         )}
       </>
     );
-  const user = session.user,
-    allowed =
-      !["orders", "news", "activity-log"].includes(page) ||
-      isCanonicalAdmin(user);
+  }
+
+  const user = session.user;
+  const allowed =
+    !["orders", "news", "activity-log"].includes(page) ||
+    isCanonicalAdmin(user);
+
   return (
     <div className="app-shell">
       {menu && (
@@ -212,116 +223,6 @@ export default function App() {
           </button>
         </div>
       )}
-    </div>
-  );
-}
-function Login({ loggedIn }) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-
-  async function submit(e) {
-    e.preventDefault();
-    setBusy(true);
-    setError("");
-    const form = new FormData(e.currentTarget);
-    try {
-      const result = await request(`${U}/login`, {
-        method: "POST",
-        token: null,
-        body: {
-          email: form.get("email").trim(),
-          password: form.get("password"),
-        },
-      });
-      if (!isAdmin(result.data))
-        throw new Error(
-          "Tài khoản này không có quyền truy cập trang quản trị.",
-        );
-      if (!result.token) throw new Error("BE không trả về token đăng nhập.");
-      loggedIn({ token: result.token, user: result.data });
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "#f5f7fb",
-        padding: "20px",
-      }}
-    >
-      <form
-        className="card"
-        onSubmit={submit}
-        style={{
-          width: "100%",
-          maxWidth: "380px",
-          padding: "36px 28px",
-          display: "flex",
-          flexDirection: "column",
-          gap: "18px",
-        }}
-      >
-        <div style={{ textAlign: "center", marginBottom: "4px" }}>
-          <img
-            src={logo}
-            alt="StoreHub Logo"
-            style={{
-              width: "56px",
-              height: "64px",
-              objectFit: "contain",
-              margin: "0 auto 10px",
-              display: "block",
-            }}
-          />
-          <h2 style={{ margin: "0 0 6px", fontSize: "24px" }}>Đăng nhập</h2>
-          <small>StoreHub Admin Workspace</small>
-        </div>
-
-        <Field label="Email">
-          <input
-            name="email"
-            type="email"
-            placeholder="admin@example.com"
-            autoComplete="username"
-            required
-            disabled={busy}
-          />
-        </Field>
-
-        <Field label="Mật khẩu">
-          <input
-            name="password"
-            type="password"
-            placeholder="Nhập mật khẩu..."
-            autoComplete="current-password"
-            required
-            disabled={busy}
-          />
-        </Field>
-
-        {error && (
-          <p className="error" role="alert" style={{ margin: 0 }}>
-            {error}
-          </p>
-        )}
-
-        <button
-          className="primary"
-          type="submit"
-          disabled={busy}
-          style={{ width: "100%", padding: "12px", marginTop: "4px" }}
-        >
-          {busy ? "Đang đăng nhập…" : "Đăng nhập"}
-        </button>
-      </form>
     </div>
   );
 }
