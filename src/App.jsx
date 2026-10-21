@@ -9,6 +9,7 @@ import {
   isCanonicalAdmin,
 } from "./api";
 import { Field, Icon, State } from "./components/UI";
+import logo from "./assets/logo.png";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Catalog = lazy(() => import("./pages/Catalog"));
@@ -107,8 +108,12 @@ export default function App() {
           className="brand"
           onClick={() => navigate("dashboard")}
         >
-          <span className="brand-logo" aria-hidden="true">
-            SH
+          <span
+            className="brand-logo"
+            aria-hidden="true"
+            style={{ background: "transparent", boxShadow: "none" }}
+          >
+            <img src={logo} alt="StoreHub Logo" className="brand-logo-img" />
           </span>
           <span>
             Store<span className="brand-light">Hub</span>
@@ -265,6 +270,17 @@ function Login({ loggedIn }) {
         }}
       >
         <div style={{ textAlign: "center", marginBottom: "4px" }}>
+          <img
+            src={logo}
+            alt="StoreHub Logo"
+            style={{
+              width: "56px",
+              height: "64px",
+              objectFit: "contain",
+              margin: "0 auto 10px",
+              display: "block",
+            }}
+          />
           <h2 style={{ margin: "0 0 6px", fontSize: "24px" }}>Đăng nhập</h2>
           <small>StoreHub Admin Workspace</small>
         </div>

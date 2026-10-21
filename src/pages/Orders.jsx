@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useResource } from "../hooks";
 import { O, request, money, date, nextStatuses } from "../api";
 import {
@@ -13,11 +13,16 @@ import {
 import {
   EMPTY_ORDER_FILTERS,
   ORDER_STATUSES,
+  ORDER_TABS,
+  countOrdersByTab,
   validateOrderFilters,
   hasOrderFilters,
   fetchOrderSnapshot,
+  getCachedOrderSnapshot,
+  clearOrdersSnapshotCache,
   filterOrders,
 } from "../services/orderSearch";
+import { clearOrdersCache } from "../services/dashboardStats";
 
 export default function Orders({ user, notify }) {
   const [draft, setDraft] = useState({ ...EMPTY_ORDER_FILTERS }),
@@ -49,14 +54,14 @@ export default function Orders({ user, notify }) {
         <div>
           <span className="eyebrow">CỬA HÀNG / ĐƠN HÀNG</span>
           <h1>Đơn hàng</h1>
-          <p>Tìm đúng đơn hàng theo mã đơn, khách hàng và thời gian đặt.</p>
+          <p>Quản lý đơn hàng theo quy trình vận hành và lọc theo mã đơn, khách hàng, ngày đặt.</p>
         </div>
       </div>
       <form className="card filter-panel" onSubmit={apply}>
         <div className="section-head">
           <h2>Tìm kiếm và lọc đơn hàng</h2>
         </div>
-        <div className="filter-grid">
+        <div className="filter-grid order-filter-grid">
           <Field label="Mã đơn hàng">
             <input
               value={draft.orderCode}
@@ -83,14 +88,6 @@ export default function Orders({ user, notify }) {
           <Field label="Đến ngày">
             <input type="date" value={draft.toDate} onChange={set("toDate")} />
           </Field>
-          <Field label="Trạng thái đơn">
-            <select value={draft.status} onChange={set("status")}>
-              <option value="">Tất cả trạng thái</option>
-              {ORDER_STATUSES.map((s) => (
-                <option key={s}>{s}</option>
-              ))}
-            </select>
-          </Field>
         </div>
         {error && (
           <p className="error" role="alert">
@@ -105,197 +102,248 @@ export default function Orders({ user, notify }) {
             <button type="button" onClick={reset}>
               Xóa bộ lọc
             </button>
-            <button className="primary">
-              <Icon name="search" size={17} />
+            <button className="primary" type="submit">
               Áp dụng bộ lọc
             </button>
           </div>
         </div>
       </form>
       <OrderResults
-        key={JSON.stringify(applied) + revision}
+        key={revision}
         filters={applied}
+        onClearSearch={reset}
         {...{ user, notify }}
       />
     </>
   );
 }
-function OrderResults({ filters, user, notify }) {
-  const [selected, setSelected] = useState(null),
-    [revision, setRevision] = useState(0),
-    [page, setPage] = useState(1);
+function OrderResults({ filters, user, notify, onClearSearch }) {
+  const [activeTab, setActiveTab] = useState("all");
+  const [tabAnimKey, setTabAnimKey] = useState(0);
+  const [selected, setSelected] = useState(null);
+  const [page, setPage] = useState(1);
+  const [reloadKey, setReloadKey] = useState(0);
+
   const [state, setState] = useState({
     loading: true,
     error: "",
-    rows: [],
-    total: 0,
-    pages: 0,
+    allOrders: [],
   });
-  const [progress, setProgress] = useState(null);
-  const filtered = hasOrderFilters(filters);
-  // Filtered result pages reuse a single complete snapshot; they never re-fetch all pages.
-  const remotePage = filtered ? 1 : page;
-  useEffect(() => {
-    const abort = new AbortController();
-    const load = async () => {
-      try {
-        if (filtered) {
-          const all = await fetchOrderSnapshot({
-            signal: abort.signal,
-            onProgress: (value) => {
-              if (!abort.signal.aborted) setProgress(value);
-            },
-          });
-          const rows = filterOrders(all, filters);
-          if (!abort.signal.aborted)
-            setState({
-              loading: false,
-              error: "",
-              rows,
-              total: rows.length,
-              pages: Math.ceil(rows.length / 10),
-              scanned: all.length,
-            });
-        } else {
-          const result = await request(
-            `${O}/admin/orders?page=${remotePage}&limit=10`,
-            { signal: abort.signal },
-          );
-          if (!Array.isArray(result.data))
-            throw new Error("Danh sách đơn hàng không hợp lệ.");
-          if (!abort.signal.aborted)
-            setState({
-              loading: false,
-              error: "",
-              rows: result.data,
-              total: result.pagination?.totalProducts,
-              pages: result.pagination?.totalPages || 1,
-            });
-        }
-      } catch (err) {
-        if (!abort.signal.aborted)
-          setState({
-            loading: false,
-            error: err.message,
-            rows: [],
-            total: 0,
-            pages: 0,
-          });
+
+  const loadData = useCallback(async (forceRefresh = false) => {
+    setState((prev) => ({ ...prev, loading: true, error: "" }));
+    try {
+      if (forceRefresh) {
+        clearOrdersSnapshotCache();
+        clearOrdersCache();
       }
-    };
-    load();
-    return () => abort.abort();
-  }, [filters, filtered, remotePage, revision]);
+      const data = await getCachedOrderSnapshot({ forceRefresh });
+      setState({
+        loading: false,
+        error: "",
+        allOrders: Array.isArray(data) ? data : [],
+      });
+    } catch (err) {
+      setState({
+        loading: false,
+        error: err.message || "Không thể tải danh sách đơn hàng.",
+        allOrders: [],
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData(false);
+  }, [loadData, reloadKey]);
+
   function reload() {
-    setState({ loading: true, error: "", rows: [], total: 0, pages: 0 });
-    setProgress(null);
     setPage(1);
-    setRevision((v) => v + 1);
+    loadData(true);
   }
+
+  // Đếm số lượng đơn hàng theo từng Tab trạng thái vận hành chuẩn
+  const tabCounts = useMemo(
+    () => countOrdersByTab(state.allOrders),
+    [state.allOrders]
+  );
+
+  const currentTab = useMemo(
+    () => ORDER_TABS.find((t) => t.id === activeTab) || ORDER_TABS[0],
+    [activeTab]
+  );
+
+  // Lọc danh sách theo Tab đang chọn kết hợp bộ lọc tìm kiếm
+  const filteredRows = useMemo(() => {
+    if (!state.allOrders.length) return [];
+    const effectiveFilters = {
+      ...filters,
+      status: currentTab.statuses,
+    };
+    try {
+      return filterOrders(state.allOrders, effectiveFilters);
+    } catch {
+      return [];
+    }
+  }, [state.allOrders, filters, currentTab]);
+
+  const hasSearch = hasOrderFilters(filters);
+  const pageSize = 10;
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const pageRows = filteredRows.slice((page - 1) * pageSize, page * pageSize);
+
+  function handleTabClick(tabId) {
+    if (tabId === activeTab) return;
+    setActiveTab(tabId);
+    setPage(1);
+    setTabAnimKey((k) => k + 1);
+  }
+
   function goPage(next) {
-    if (!filtered)
-      setState({ loading: true, error: "", rows: [], total: 0, pages: 0 });
     setPage(next);
   }
-  const rows = filtered
-    ? state.rows.slice((page - 1) * 10, page * 10)
-    : state.rows;
+
   return (
-    <section className="card">
+    <section className="card order-results-card">
+      {/* 1. Thanh điều hướng 5 Tab vận hành chuẩn + 1 Tab phụ */}
+      <div className="order-tabs-wrapper">
+        <div
+          className="order-tabs"
+          role="tablist"
+          aria-label="Thanh điều hướng trạng thái vận hành đơn hàng"
+        >
+          {ORDER_TABS.map((tab) => {
+            const isActive = activeTab === tab.id;
+            const count = tabCounts[tab.id] ?? 0;
+            return (
+              <button
+                key={tab.id}
+                role="tab"
+                type="button"
+                id={`tab-${tab.id}`}
+                aria-selected={isActive}
+                data-tab-id={tab.id}
+                data-tab-index={tab.operationalIndex ?? 0}
+                className={`order-tab-btn ${isActive ? "active" : ""} ${
+                  tab.isAuxiliary ? "auxiliary" : ""
+                }`}
+                onClick={() => handleTabClick(tab.id)}
+              >
+                <span className="order-tab-label">{tab.label}</span>
+                <span
+                  className={`order-tab-badge tone-${tab.badgeTone} ${
+                    isActive ? "badge-active" : ""
+                  }`}
+                  title={`${count} đơn hàng`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 2. Tiêu đề danh sách và nút tải lại */}
       <div className="list-heading">
         <div>
-          <strong>
-            {filtered ? "Kết quả theo bộ lọc đã áp dụng" : "Tất cả đơn hàng"}
+          <strong className="order-list-heading-title">
+            {currentTab.label}
+            {hasSearch && " · Đã áp dụng bộ lọc tìm kiếm"}
           </strong>
-          {filtered && (
-            <small className="block">
-              {state.scanned != null && ` Đã kiểm tra ${state.scanned} đơn.`}
-            </small>
+          <small className="block">
+            Hiển thị {pageRows.length} trên {filteredRows.length} đơn hàng
+            {state.allOrders.length > 0 &&
+              ` (Tổng số: ${state.allOrders.length} đơn trên toàn hệ thống)`}
+          </small>
+        </div>
+        <div className="actions">
+          {hasSearch && onClearSearch && (
+            <button type="button" onClick={onClearSearch}>
+              Xóa tìm kiếm
+            </button>
           )}
+          <button onClick={reload} disabled={state.loading}>
+            Tải lại
+          </button>
         </div>
-        <button onClick={reload} disabled={state.loading}>
-          <Icon name="refresh" size={16} />
-          Tải lại
-        </button>
       </div>
-      {filtered && state.loading && progress && (
-        <p className="filter-progress" role="status">
-          Đã tải {progress.loaded}/{progress.total} đơn hàng… Chỉ hiển thị kết
-          quả khi tải đủ dữ liệu.
-        </p>
-      )}
-      <State
-        loading={state.loading}
-        error={state.error}
-        retry={reload}
-        empty={!state.loading && !state.error && !rows.length}
-      />
-      {!state.loading && !state.error && !!rows.length && (
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Mã đơn / Ngày đặt</th>
-                <th>Khách hàng</th>
-                <th>Tổng tiền</th>
-                <th>Thanh toán</th>
-                <th>Trạng thái</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((o) => (
-                <tr key={o._id}>
-                  <td>
-                    <strong className="order-code">
-                      {o.orderCode || o._id.slice(-8)}
-                    </strong>
-                    <small className="block">
-                      {o.createdAt
-                        ? new Date(o.createdAt).toLocaleString("vi-VN", {
-                            timeZone: "Asia/Ho_Chi_Minh",
-                          })
-                        : "—"}
-                    </small>
-                  </td>
-                  <td>
-                    <strong>{o.receiverName || o.user?.name || "—"}</strong>
-                    <small className="block">
-                      {o.receiverPhone || o.user?.phone || "—"}
-                    </small>
-                  </td>
-                  <td className="strong nowrap">
-                    {money(o.totalAmount ?? o.totalPrice)}
-                  </td>
-                  <td>{o.paymentMethod}</td>
-                  <td>
-                    <Badge>{o.status}</Badge>
-                  </td>
-                  <td>
-                    <button onClick={() => setSelected(o._id)}>
-                      Chi tiết →
-                    </button>
-                  </td>
+
+      {/* 3. Nội dung bảng danh sách có animation mượt mà khi đổi Tab */}
+      <div
+        key={activeTab + "-" + tabAnimKey}
+        className="order-tab-pane tab-fade-in"
+      >
+        <State
+          loading={state.loading}
+          error={state.error}
+          retry={reload}
+          empty={!state.loading && !state.error && !pageRows.length}
+        />
+        {!state.loading && !state.error && !!pageRows.length && (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Mã đơn / Ngày đặt</th>
+                  <th>Khách hàng</th>
+                  <th>Tổng tiền</th>
+                  <th>Thanh toán</th>
+                  <th>Trạng thái</th>
+                  <th />
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody>
+                {pageRows.map((o) => (
+                  <tr key={o._id}>
+                    <td>
+                      <strong className="order-code">
+                        {o.orderCode || o._id.slice(-8)}
+                      </strong>
+                      <small className="block">
+                        {o.createdAt
+                          ? new Date(o.createdAt).toLocaleString("vi-VN", {
+                              timeZone: "Asia/Ho_Chi_Minh",
+                            })
+                          : "—"}
+                      </small>
+                    </td>
+                    <td>
+                      <strong>{o.receiverName || o.user?.name || "—"}</strong>
+                      <small className="block">
+                        {o.receiverPhone || o.user?.phone || "—"}
+                      </small>
+                    </td>
+                    <td className="strong nowrap">
+                      {money(o.totalAmount ?? o.totalPrice)}
+                    </td>
+                    <td>{o.paymentMethod}</td>
+                    <td>
+                      <Badge>{o.status}</Badge>
+                    </td>
+                    <td>
+                      <button onClick={() => setSelected(o._id)}>
+                        Chi tiết
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* 4. Phân trang */}
       {!state.loading && !state.error && (
         <Pager
           page={page}
           setPage={goPage}
-          total={state.total}
-          hasNext={page < state.pages}
+          total={filteredRows.length}
+          hasNext={page < totalPages}
         />
       )}
-      {filtered && (
-        <p className="compat-note">
-          Chế độ tương thích: bộ lọc hiện xử lý trên trình duyệt sau khi tải dữ
-          liệu. Với hơn 5.000 đơn.
-        </p>
-      )}
+
+      {/* 5. Modal chi tiết đơn hàng */}
       {selected && (
         <OrderDetail
           id={selected}

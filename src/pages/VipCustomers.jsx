@@ -188,7 +188,6 @@ export default function VipCustomers() {
               Xóa bộ lọc
             </button>
             <button className="primary">
-              <Icon name="search" size={17} />
               Lọc khách hàng
             </button>
           </div>
@@ -219,7 +218,6 @@ export default function VipCustomers() {
         <div className="list-heading">
           <strong>Danh sách theo bộ lọc đã áp dụng</strong>
           <button onClick={reload} disabled={state.loading}>
-            <Icon name="refresh" size={16} />
             Tải lại
           </button>
         </div>

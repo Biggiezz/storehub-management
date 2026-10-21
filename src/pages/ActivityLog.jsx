@@ -332,7 +332,7 @@ export default function ActivityLog() {
           onClick={loadActivities}
           disabled={loading}
         >
-          {loading ? "Đang tải..." : "↻ Làm mới"}
+          {loading ? "Đang tải..." : "Làm mới"}
         </button>
       </header>
 
