@@ -108,8 +108,16 @@ export const P = "/productsRouter",
   N = "/newsRouter";
 export const money = (value, unit = "VNĐ") => {
   if (value == null || value === "") return `0 ${unit}`;
-  const cleanStr = typeof value === "string" ? value.replace(/[^\d.-]/g, "") : value;
-  const num = Number(cleanStr);
+  let cleanVal = value;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (/\d+\.\d{3}/.test(trimmed) || /\b(vnđ|vnd|đ)\b/i.test(trimmed)) {
+      cleanVal = trimmed.replace(/\./g, "").replace(/[^\d-]/g, "");
+    } else {
+      cleanVal = trimmed.replace(/[^\d.-]/g, "");
+    }
+  }
+  const num = Number(cleanVal);
   if (isNaN(num)) return `0 ${unit}`;
   const isNegative = num < 0;
   const absNum = Math.round(Math.abs(num));

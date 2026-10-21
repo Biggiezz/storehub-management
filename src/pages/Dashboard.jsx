@@ -220,7 +220,7 @@ function Revenue({ period, navigate, orders = [] }) {
           aria-label="Doanh thu theo thời gian"
         >
           {bars.map((b, i) => {
-            const rev = resolveBarRevenue(b);
+            const rev = resolveBarRevenue(b, bars, totalRev);
             const orderCount = resolveBarOrders(
               b,
               rev,
