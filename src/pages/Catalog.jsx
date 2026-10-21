@@ -249,6 +249,7 @@ function CatalogRows({
     [detailing, setDetailing] = useState(null),
     [deleting, setDeleting] = useState(null),
     [quickStockItem, setQuickStockItem] = useState(null),
+    [togglingIds, setTogglingIds] = useState({}),
     [busy, setBusy] = useState(false),
     [actionError, setActionError] = useState("");
 
@@ -260,6 +261,63 @@ function CatalogRows({
       }
     }
     reload();
+  }
+
+  async function handleToggleProductStatus(product) {
+    if (!product || !product._id || togglingIds[product._id]) return;
+
+    const previousActive = product.isActive !== false;
+    const nextActive = !previousActive;
+
+    // 1. Đổi trạng thái hiển thị tức thì trên giao diện (Optimistic UI)
+    product.isActive = nextActive;
+    setTogglingIds((prev) => ({ ...prev, [product._id]: true }));
+
+    try {
+      const form = new FormData();
+      if (product.name) form.set("name", product.name);
+      if (product.category?._id || product.category) {
+        form.set("category", product.category?._id || product.category);
+      }
+      if (product.price != null) form.set("price", String(product.price));
+      if (product.costPrice != null) form.set("costPrice", String(product.costPrice));
+      if (product.sku) form.set("sku", product.sku);
+      if (product.stock != null) form.set("stock", String(product.stock));
+      if (product.description) form.set("description", product.description);
+      if (product.colors) form.set("colors", JSON.stringify(product.colors));
+      if (product.images) {
+        form.set(
+          "images",
+          Array.isArray(product.images)
+            ? JSON.stringify(product.images)
+            : String(product.images),
+        );
+      }
+      form.set("isActive", String(nextActive));
+
+      await request(`${P}/update-product/${product._id}`, {
+        method: "PUT",
+        body: form,
+      });
+
+      // 2. Thông báo toast theo đúng yêu cầu AC1 của US12
+      notify(
+        nextActive
+          ? "Đã bật kinh doanh sản phẩm"
+          : "Đã tạm ngừng kinh doanh sản phẩm",
+      );
+    } catch (err) {
+      // Revert nếu có lỗi
+      product.isActive = previousActive;
+      notify(err.message || "Cập nhật trạng thái sản phẩm thất bại.");
+    } finally {
+      setTogglingIds((prev) => {
+        const next = { ...prev };
+        delete next[product._id];
+        return next;
+      });
+      reload();
+    }
   }
   const all = data?.data || [],
     rows =
@@ -426,9 +484,41 @@ function CatalogRows({
                         </button>
                       </td>
                       <td>
-                        <Badge>
-                          {x.isActive === false ? "Ngừng bán" : "Đang bán"}
-                        </Badge>
+                        <div className="status-toggle-cell">
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={x.isActive !== false}
+                            aria-label={`Chuyển trạng thái kinh doanh cho ${x.name}`}
+                            className={`status-toggle-switch ${
+                              x.isActive !== false ? "active" : "inactive"
+                            } ${togglingIds[x._id] ? "loading" : ""}`}
+                            disabled={!writable || !!togglingIds[x._id]}
+                            onClick={() => handleToggleProductStatus(x)}
+                            title={
+                              x.isActive !== false
+                                ? "Click để tạm ngừng kinh doanh"
+                                : "Click để bật kinh doanh"
+                            }
+                          >
+                            <span className="toggle-thumb">
+                              {togglingIds[x._id] && (
+                                <span className="toggle-spinner" />
+                              )}
+                            </span>
+                          </button>
+                          <span
+                            className={`status-toggle-label ${
+                              x.isActive !== false ? "active" : "inactive"
+                            }`}
+                          >
+                            {togglingIds[x._id]
+                              ? "Đang lưu…"
+                              : x.isActive !== false
+                              ? "Đang bán"
+                              : "Ngừng bán"}
+                          </span>
+                        </div>
                       </td>
                     </>
                   ) : (
