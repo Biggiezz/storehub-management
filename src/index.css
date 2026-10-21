@@ -493,13 +493,14 @@ main {
   background: rgba(91, 135, 238, 0.05);
 }
 .bar-amount {
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 600;
   color: #3b82f6;
   margin-bottom: 6px;
   white-space: nowrap;
   text-align: center;
   line-height: 1.2;
+  letter-spacing: -0.3px;
 }
 .bar-track {
   height: 135px;
@@ -691,15 +692,12 @@ main {
   align-items: center;
   justify-content: center;
   color: #a0aec0;
-  opacity: 0.4;
-  transition: opacity 0.18s ease, transform 0.18s ease, color 0.18s ease;
-  margin-left: auto;
+  margin-right: 10px;
   flex-shrink: 0;
 }
 .top-item:hover .top-item-arrow {
   opacity: 1;
   color: #3568e8;
-  transform: translateX(3px);
 }
 .searchbox-clear {
   border: 0 !important;

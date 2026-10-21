@@ -173,13 +173,81 @@ function Revenue({ period, navigate }) {
     );
   const d = data.data,
     bars = d.dailyStats || [],
-    max = Math.max(
-      ...bars.map(
-        (x) => x.revenue ?? x.totalRevenue ?? x.totalAmount ?? x.amount ?? 0,
-      ),
-      1,
-    ),
-    totalRev = d.totalRevenue ?? d.totalAmount ?? d.totalSales ?? d.revenue ?? 0;
+    totalRev =
+      d.totalRevenue ?? d.totalAmount ?? d.totalSales ?? d.revenue ?? 0,
+    totalOrders = d.totalOrders ?? 0;
+
+  function resolveBarRevenue(b) {
+    if (!b) return 0;
+    const candidates = [
+      b.totalAmount,
+      b.totalRevenue,
+      b.amount,
+      b.total,
+      b.orderAmount,
+      b.totalPrice,
+      b.revenue,
+    ];
+    // 1. Nếu trong b đã có trường tiền đầy đủ (>= 10.000 VNĐ)
+    for (const val of candidates) {
+      const num = Number(val);
+      if (!isNaN(num) && num >= 10000) {
+        return num;
+      }
+    }
+    // 2. Tìm giá trị raw đầu tiên khác 0
+    let raw = 0;
+    for (const val of candidates) {
+      const num = Number(val);
+      if (!isNaN(num) && num > 0) {
+        raw = num;
+        break;
+      }
+    }
+    if (raw <= 0) return 0;
+
+    // 3. Nếu raw nhỏ (< 10.000) trong khi tổng doanh thu lớn (>= 100.000 VNĐ):
+    // Backend đã rút gọn hoặc lưu theo đơn vị triệu đồng (hoặc nghìn đồng)
+    if (totalRev >= 100000) {
+      const activeBars = bars.filter((x) => {
+        const v = Number(
+          x.revenue ?? x.totalRevenue ?? x.totalAmount ?? x.amount ?? 0,
+        );
+        return v > 0;
+      });
+      // Nếu chỉ có duy nhất 1 cột có doanh thu trong kỳ (như cột T5)
+      if (activeBars.length === 1) {
+        return totalRev;
+      }
+      // Nếu có nhiều cột: phân bổ theo tỷ lệ
+      const rawSum = bars.reduce((sum, x) => {
+        const v = Number(
+          x.revenue ?? x.totalRevenue ?? x.totalAmount ?? x.amount ?? 0,
+        );
+        return sum + (isNaN(v) ? 0 : v);
+      }, 0);
+      if (rawSum > 0) {
+        const ratio = totalRev / rawSum;
+        if (ratio >= 200000 && ratio <= 5000000) {
+          return Math.round((raw / rawSum) * totalRev);
+        }
+        if (ratio >= 200 && ratio <= 5000) {
+          return Math.round((raw / rawSum) * totalRev);
+        }
+      }
+      // Fallback: Nếu raw < 1.000 và totalRev >= 1.000.000 thì đơn vị là triệu đồng
+      if (raw < 1000 && totalRev >= 1000000) {
+        return raw * 1000000;
+      }
+    }
+    return raw;
+  }
+
+  const max = Math.max(
+    ...bars.map((x) => resolveBarRevenue(x)),
+    1,
+  );
+
   return (
     <div className="dashboard-grid">
       <section className="card revenue">
@@ -188,7 +256,7 @@ function Revenue({ period, navigate }) {
             <h3>Doanh thu theo thời gian</h3>
             <strong className="revenue-total">{money(totalRev)}</strong>
           </div>
-          <span className="badge blue">{d.totalOrders} đơn</span>
+          <span className="badge blue">{totalOrders} đơn</span>
         </div>
         <div
           className="bars"
@@ -196,13 +264,16 @@ function Revenue({ period, navigate }) {
           aria-label="Doanh thu theo thời gian"
         >
           {bars.map((b, i) => {
-            const rev =
-              b.revenue ?? b.totalRevenue ?? b.totalAmount ?? b.amount ?? 0;
+            const rev = resolveBarRevenue(b);
+            const activeBars = bars.filter((x) => resolveBarRevenue(x) > 0);
             const orderCount =
               b.orderCount ??
               b.orders ??
-              b.totalOrders ??
-              (rev > 0 ? Math.max(1, Math.round(rev / 2000000)) : 0);
+              (rev > 0 && activeBars.length === 1 && totalOrders > 0
+                ? totalOrders
+                : rev > 0
+                ? Math.max(1, Math.round(rev / 2000000))
+                : 0);
             return (
               <div className="bar-col" key={i} tabIndex={0}>
                 <div className="bar-tooltip" role="tooltip">
