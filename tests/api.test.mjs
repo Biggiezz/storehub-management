@@ -7,6 +7,7 @@ import {
   query,
   request,
   setSession,
+  toSlug,
 } from "../src/api.js";
 const memory = new Map();
 globalThis.sessionStorage = {
@@ -45,6 +46,13 @@ test("query escapes Unicode and removes empty values", () => {
   );
   assert.equal(q.get("keyword"), "Điện thoại & máy tính");
   assert.equal(q.has("status"), false);
+});
+test("toSlug converts Vietnamese with accents and symbols to SEO slugs correctly", () => {
+  assert.equal(toSlug("Điện thoại & Tablet"), "dien-thoai-tablet");
+  assert.equal(toSlug("  Đồng Hồ Thông Minh  "), "dong-ho-thong-minh");
+  assert.equal(toSlug("Thời Trang Nam - Nữ & Phụ Kiện 2024!"), "thoi-trang-nam-nu-phu-kien-2024");
+  assert.equal(toSlug(""), "");
+  assert.equal(toSlug(null), "");
 });
 test("JSON and multipart use correct authorization/body headers", async () => {
   setSession({ token: "test-token", user: { role: "admin" } });

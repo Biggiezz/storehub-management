@@ -9,6 +9,7 @@ import {
   imageUrl,
   isSuper,
   isCanonicalAdmin,
+  toSlug,
 } from "../api";
 import { useResource } from "../hooks";
 import {
@@ -160,7 +161,6 @@ export default function Catalog({ kind, user, notify }) {
                 ×
               </button>
             )}
-            <button type="submit">Tìm</button>
           </form>
           {kind !== "categories" && (
             <select
@@ -413,8 +413,7 @@ function CatalogRows({
           </button>
           {writable && (
             <button className="primary" onClick={() => setEditing({})}>
-              <Icon name="plus" size={17} />
-              Thêm {c.singular}
+              Thêm
             </button>
           )}
         </div>
@@ -672,6 +671,7 @@ function CatalogRows({
       {editing && (
         <Editor
           {...{ kind, c, user, categories, categoryError }}
+          existingCategories={kind === "categories" ? all : categories}
           item={editing}
           close={() => setEditing(null)}
           saved={() => {
@@ -876,6 +876,9 @@ function QuickStockModal({ item, close, saved, notify }) {
   );
 }
 
+export { toSlug };
+
+
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -891,6 +894,7 @@ function Editor({
   user,
   categories,
   categoryError,
+  existingCategories = [],
   item,
   close,
   saved,
@@ -898,6 +902,21 @@ function Editor({
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [colors, setColors] = useState(item.colors || []);
+
+  const [categoryName, setCategoryName] = useState(item.name || "");
+  const [categorySlug, setCategorySlug] = useState(
+    item.slug || (item.name ? toSlug(item.name) : ""),
+  );
+  const [isManualSlug, setIsManualSlug] = useState(!!item.slug);
+
+  const isDuplicateCategoryName =
+    kind === "categories" &&
+    categoryName.trim() &&
+    existingCategories.some(
+      (cat) =>
+        cat._id !== item._id &&
+        (cat.name || "").trim().toLowerCase() === categoryName.trim().toLowerCase(),
+    );
 
   const edit = !!item._id;
 
@@ -1073,6 +1092,26 @@ function Editor({
         }
         form.set("images", JSON.stringify(urlList));
       }
+      if (kind === "categories") {
+        const catName = form.get("name")?.trim();
+        if (!catName) {
+          throw new Error("Vui lòng nhập tên danh mục.");
+        }
+        const duplicate = existingCategories.some(
+          (cat) =>
+            cat._id !== item._id &&
+            (cat.name || "").trim().toLowerCase() === catName.toLowerCase(),
+        );
+        if (duplicate) {
+          throw new Error(
+            `Tên danh mục "${catName}" đã tồn tại trong danh sách hiện tại. Vui lòng chọn tên khác.`,
+          );
+        }
+        form.set("name", catName);
+        if (categorySlug) {
+          form.set("slug", categorySlug.trim());
+        }
+      }
       await request(c.base + (edit ? c.update + item._id : c.add), {
         method: edit ? "PUT" : "POST",
         body,
@@ -1099,22 +1138,88 @@ function Editor({
     >
       <form onSubmit={submit}>
         <fieldset disabled={busy} className="modal-body form-grid">
-          <Field
-            label={kind === "news" ? "Tiêu đề *" : "Tên *"}
-            name={kind === "news" ? "title" : "name"}
-            defaultValue={item.title || item.name || ""}
-            required
-            maxLength={250}
-          />
-          {kind === "categories" && (
+          {kind === "categories" ? (
+            <>
+              <Field label="Tên danh mục *">
+                <input
+                  name="name"
+                  required
+                  maxLength={250}
+                  value={categoryName}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCategoryName(val);
+                    if (!isManualSlug) {
+                      setCategorySlug(toSlug(val));
+                    }
+                  }}
+                  placeholder="VD: Điện thoại & Tablet..."
+                />
+                {isDuplicateCategoryName && (
+                  <p className="field-duplicate-warning" role="alert">
+                    ⚠️ Tên danh mục này đã tồn tại trong danh sách hiện tại.
+                  </p>
+                )}
+              </Field>
+
+              <Field label="Đường dẫn SEO (Slug)">
+                <div className="slug-input-wrapper">
+                  <span className="slug-prefix">/danh-muc/</span>
+                  <input
+                    name="slug"
+                    value={categorySlug}
+                    onChange={(e) => {
+                      setCategorySlug(e.target.value);
+                      setIsManualSlug(true);
+                    }}
+                    placeholder="dien-thoai-tablet"
+                  />
+                  <button
+                    type="button"
+                    className="btn-resync-slug"
+                    onClick={() => {
+                      const generated = toSlug(categoryName);
+                      setCategorySlug(generated);
+                      setIsManualSlug(false);
+                    }}
+                    title="Tạo lại slug tự động từ tên danh mục"
+                  >
+                    <Icon name="refresh" size={13} />
+                    <span>Làm mới</span>
+                  </button>
+                </div>
+                <small className="muted" style={{ margin: "3px 0 0", fontSize: "11px" }}>
+                  Đường dẫn chuẩn SEO không dấu (tự động sinh theo tên hoặc tùy chỉnh thủ công).
+                </small>
+              </Field>
+
+              <Field label="Mô tả ngành hàng">
+                <textarea
+                  name="description"
+                  rows={3}
+                  defaultValue={item.description || ""}
+                  placeholder="Nhập mô tả tóm tắt cho ngành hàng này..."
+                />
+              </Field>
+
+              <Field label="Thứ tự hiển thị (trên trang chủ)">
+                <input
+                  name="orderIndex"
+                  type="number"
+                  min="1"
+                  step="1"
+                  defaultValue={item.orderIndex || item.sortOrder || 1}
+                  placeholder="VD: 1, 2, 3..."
+                />
+              </Field>
+            </>
+          ) : (
             <Field
-              label="Thứ tự hiển thị (trên trang chủ)"
-              name="orderIndex"
-              type="number"
-              min="1"
-              step="1"
-              defaultValue={item.orderIndex || item.sortOrder || 1}
-              placeholder="VD: 1, 2, 3..."
+              label={kind === "news" ? "Tiêu đề *" : "Tên *"}
+              name={kind === "news" ? "title" : "name"}
+              defaultValue={item.title || item.name || ""}
+              required
+              maxLength={250}
             />
           )}
           {kind === "products" && (
@@ -1264,7 +1369,7 @@ function Editor({
                     ])
                   }
                 >
-                  + Thêm màu
+                  Thêm màu
                 </button>
               </div>
             </>
@@ -1344,7 +1449,6 @@ function Editor({
 
               <div className="gallery-uploader-toolbar">
                 <label className="btn-upload-file">
-                  <Icon name="photo" size={15} />
                   <span>Chọn ảnh từ máy tính (nhiều ảnh)</span>
                   <input
                     type="file"
@@ -1370,7 +1474,7 @@ function Editor({
                     }}
                   />
                   <button type="button" onClick={handleAddUrl}>
-                    + Thêm URL
+                    Thêm URL
                   </button>
                 </div>
               </div>
@@ -1649,7 +1753,7 @@ function ProductDetailModal({ item, close, onEdit, onQuickStock }) {
                     : "Còn hàng"}
                   )
                 </span>
-                {onQuickStock && (
+                {/* {onQuickStock && (
                   <button
                     type="button"
                     className="btn-detail-quick-stock"
@@ -1659,7 +1763,7 @@ function ProductDetailModal({ item, close, onEdit, onQuickStock }) {
                     <Icon name="edit" size={12} />
                     <span>Sửa tồn kho</span>
                   </button>
-                )}
+                )} */}
               </div>
               <div className="meta-row">
                 <span className="muted">Ngày tạo:</span>
@@ -1764,7 +1868,6 @@ function ProductDetailModal({ item, close, onEdit, onQuickStock }) {
             className="primary"
             onClick={() => onEdit(item)}
           >
-            <Icon name="plus" size={15} />
             Chỉnh sửa sản phẩm
           </button>
         )}
