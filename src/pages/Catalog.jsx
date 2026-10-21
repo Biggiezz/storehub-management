@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   request,
   P,
@@ -54,10 +54,47 @@ const config = {
 };
 export default function Catalog({ kind, user, notify }) {
   const c = config[kind];
-  const [search, setSearch] = useState(""),
-    [term, setTerm] = useState(""),
-    [filter, setFilter] = useState(""),
+  const [search, setSearch] = useState(() => {
+    if (kind === "products") {
+      try {
+        return sessionStorage.getItem("storehub.product.search") || "";
+      } catch {
+        return "";
+      }
+    }
+    return "";
+  });
+  const [term, setTerm] = useState(() => {
+    if (kind === "products") {
+      try {
+        const val = sessionStorage.getItem("storehub.product.search") || "";
+        sessionStorage.removeItem("storehub.product.search");
+        return val;
+      } catch {
+        return "";
+      }
+    }
+    return "";
+  });
+  const [filter, setFilter] = useState(""),
     [page, setPage] = useState(1);
+
+  useEffect(() => {
+    if (kind === "products") {
+      try {
+        const pending = sessionStorage.getItem("storehub.product.search");
+        if (pending) {
+          sessionStorage.removeItem("storehub.product.search");
+          setSearch(pending);
+          setTerm(pending);
+          setPage(1);
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }, [kind]);
+
   const categories = useResource(`${P}/get-categories`);
   const path =
     c.base +
@@ -94,6 +131,21 @@ export default function Catalog({ kind, user, notify }) {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
+            {search && (
+              <button
+                type="button"
+                className="searchbox-clear"
+                onClick={() => {
+                  setSearch("");
+                  setTerm("");
+                  setPage(1);
+                }}
+                aria-label="Xóa tìm kiếm"
+                title="Xóa tìm kiếm"
+              >
+                ×
+              </button>
+            )}
             <button type="submit">Tìm</button>
           </form>
           {kind !== "categories" && (

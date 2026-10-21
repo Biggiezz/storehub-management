@@ -493,13 +493,14 @@ main {
   background: rgba(91, 135, 238, 0.05);
 }
 .bar-amount {
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 600;
   color: #3b82f6;
   margin-bottom: 6px;
   white-space: nowrap;
   text-align: center;
   line-height: 1.2;
+  letter-spacing: -0.3px;
 }
 .bar-track {
   height: 135px;
@@ -640,22 +641,78 @@ main {
 .top-item {
   display: flex;
   align-items: center;
-  gap: 11px;
-  padding: 18px 0;
+  gap: 12px;
+  padding: 12px 14px;
+  margin: 2px -14px;
+  border-radius: 8px;
   border-bottom: 1px solid #f0f3f7;
+  cursor: pointer;
+  transition: background 0.18s ease, box-shadow 0.18s ease;
+  user-select: none;
+}
+.top-item:hover {
+  background: #f4f7fc;
+}
+.top-item:active {
+  background: #edf2fa;
+}
+.top-item:focus-visible {
+  outline: 2px solid #8cafff;
+  outline-offset: 1px;
+}
+.top-item .top-item-info {
+  flex: 1;
+  min-width: 0;
 }
 .rank {
   font-size: 10px;
   color: #b0b9c7;
+  flex-shrink: 0;
 }
 .top-item strong {
   display: block;
   font-size: 12px;
+  color: #243247;
+  transition: color 0.15s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.top-item:hover strong {
+  color: #3568e8;
 }
 .top-item small {
   display: block;
   font-size: 10px;
   margin-top: 4px;
+  color: #8590a3;
+}
+.top-item-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #a0aec0;
+  margin-right: 10px;
+  flex-shrink: 0;
+}
+.top-item:hover .top-item-arrow {
+  opacity: 1;
+  color: #3568e8;
+}
+.searchbox-clear {
+  border: 0 !important;
+  background: transparent !important;
+  color: #94a3b8 !important;
+  font-size: 16px !important;
+  line-height: 1 !important;
+  padding: 4px 6px !important;
+  cursor: pointer;
+  border-radius: 4px;
+  margin-right: 2px !important;
+}
+.searchbox-clear:hover {
+  background: #e2e8f0 !important;
+  color: #334155 !important;
 }
 .app-footer {
   padding: 20px 38px;
@@ -1369,3 +1426,12 @@ tbody tr:hover {
     justify-content: center;
   }
 }
+
+/* US06: Top Products Navigation & Clickable Items */
+.top-item.clickable {
+  cursor: pointer;
+}
+.top-item.clickable:hover {
+  background-color: #f1f5f9;
+}
+
