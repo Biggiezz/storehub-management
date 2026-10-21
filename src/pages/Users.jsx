@@ -1,9 +1,28 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { U, request, query, date, money, isSuper, roleOf } from "../api";
+import { U, O, request, query, date, money, isSuper, roleOf } from "../api";
 import { Icon, Photo, Badge, Modal, Field, State } from "../components/UI";
 import { useResource } from "../hooks";
 import { OrderDetail } from "./Orders";
 import { getCachedOrderSnapshot } from "../services/orderSearch";
+
+/**
+ * Chuẩn hóa số điện thoại Việt Nam (+84, 84, khoảng trắng, dấu gạch)
+ */
+export function normalizePhone(p) {
+  if (!p) return "";
+  let digits = String(p).replace(/\D/g, "");
+  if (digits.startsWith("84") && digits.length > 9) {
+    digits = "0" + digits.slice(2);
+  }
+  return digits;
+}
+
+/**
+ * Chuẩn hóa email
+ */
+export function normalizeEmail(e) {
+  return String(e || "").trim().toLowerCase();
+}
 
 /**
  * US24 AC1 & AC2: Bảng định nghĩa thứ hạng VIP Loyalty
@@ -88,8 +107,9 @@ export default function Users({ user, notify }) {
   const [error, setError] = useState("");
 
   // US24: State lưu dữ liệu đơn hàng & thống kê chi tiêu khách hàng thân thiết
-  const [userOrderStats, setUserOrderStats] = useState({});
   const [allOrdersSnapshot, setAllOrdersSnapshot] = useState([]);
+  const [allRegisteredUsersSnapshot, setAllRegisteredUsersSnapshot] = useState([]);
+  const [vipPage, setVipPage] = useState(1);
 
   // US24 AC1: State bộ lọc phân hạng VIP Loyalty
   const [vipTierFilter, setVipTierFilter] = useState("");
@@ -97,7 +117,7 @@ export default function Users({ user, notify }) {
   const [minOrdersFilter, setMinOrdersFilter] = useState("");
 
   // Modals state
-  const [profileUserId, setProfileUserId] = useState(null);
+  const [profileCustomer, setProfileCustomer] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [lockModalOpen, setLockModalOpen] = useState(false);
   const [lockReason, setLockReason] = useState("");
@@ -108,51 +128,328 @@ export default function Users({ user, notify }) {
   // Client-side Page Cache: key = `${filter}::${term}::${page}`
   const pageCacheRef = useRef({});
 
-  // US24: Tải dữ liệu toàn bộ đơn hàng để tính toán chi tiêu và số đơn hoàn thành cho khách
-  useEffect(() => {
-    getCachedOrderSnapshot()
-      .then((orders) => {
-        if (!Array.isArray(orders)) return;
+  // 1. Tải toàn bộ đơn hàng trong hệ thống (kèm cơ chế fallback quét trang an toàn)
+  const loadOrdersSnapshot = useCallback(async (forceRefresh = false) => {
+    try {
+      const orders = await getCachedOrderSnapshot({ forceRefresh });
+      if (Array.isArray(orders) && orders.length > 0) {
         setAllOrdersSnapshot(orders);
-        const statsMap = {};
-        for (const o of orders) {
-          const uid = o.user?._id || o.user?.id || o.userId;
-          if (!uid) continue;
-          if (!statsMap[uid]) {
-            statsMap[uid] = {
-              totalSpent: 0,
-              completedOrdersCount: 0,
-              totalOrdersCount: 0,
-            };
-          }
-          statsMap[uid].totalOrdersCount += 1;
-          const isDone =
-            o.status === "Đã hoàn thành" || o.status === "Đã giao hàng";
-          if (isDone) {
-            statsMap[uid].totalSpent +=
-              Number(o.totalAmount ?? o.totalPrice) || 0;
-            statsMap[uid].completedOrdersCount += 1;
+        return;
+      }
+    } catch {
+      // Fallback quét trực tiếp nếu getCachedOrderSnapshot trả lỗi cấu trúc phân trang
+    }
+
+    try {
+      const allOrders = [];
+      const seenOrderIds = new Set();
+      for (let p = 1; p <= 50; p++) {
+        const res = await request(`${O}/admin/orders${query({ page: p, limit: 50 })}`);
+        const items = Array.isArray(res?.data) ? res.data : [];
+        if (!items.length) break;
+        for (const it of items) {
+          if (it?._id && !seenOrderIds.has(it._id)) {
+            seenOrderIds.add(it._id);
+            allOrders.push(it);
           }
         }
-        setUserOrderStats(statsMap);
-      })
-      .catch(() => {});
+        const totalP = res.pagination?.totalPages || res.pagination?.pages;
+        if (totalP && p >= totalP) break;
+        if (items.length < 50) break;
+      }
+      if (allOrders.length > 0) {
+        setAllOrdersSnapshot(allOrders);
+      }
+    } catch {
+      // Bỏ qua lỗi kết nối
+    }
   }, []);
 
+  // 2. Tải toàn bộ danh sách tài khoản người dùng đăng ký trong hệ thống
+  const loadAllRegisteredUsers = useCallback(async () => {
+    try {
+      const allUsers = [];
+      const seenIds = new Set();
+      for (let p = 1; p <= 30; p++) {
+        const res = await request(`${U}/get-all-users${query({ page: p, limit: 50 })}`);
+        const items = Array.isArray(res?.data) ? res.data : [];
+        if (!items.length) break;
+        for (const it of items) {
+          if (it?._id && !seenIds.has(it._id)) {
+            seenIds.add(it._id);
+            allUsers.push(it);
+          }
+        }
+        if (items.length < 50) break;
+      }
+      if (allUsers.length > 0) {
+        setAllRegisteredUsersSnapshot(allUsers);
+      }
+    } catch {
+      // Bỏ qua lỗi kết nối
+    }
+  }, []);
+
+  useEffect(() => {
+    loadOrdersSnapshot(false);
+    loadAllRegisteredUsers();
+  }, [loadOrdersSnapshot, loadAllRegisteredUsers]);
+
+  // Xây dựng danh bạ toàn diện: Gom nhóm đa kênh (ID/Email/SĐT) để nhận diện mọi khách hàng
+  const { spendingMap, spendingMapByEmail, spendingMapByPhone, allSystemCustomers } = useMemo(() => {
+    const knownUsersMap = new Map();
+    allRegisteredUsersSnapshot.forEach((u) => {
+      if (u?._id) knownUsersMap.set(u._id, u);
+    });
+    users.forEach((u) => {
+      if (u?._id) knownUsersMap.set(u._id, u);
+    });
+    Object.values(pageCacheRef.current).forEach((pageList) => {
+      if (Array.isArray(pageList)) {
+        pageList.forEach((u) => {
+          if (u?._id) knownUsersMap.set(u._id, u);
+        });
+      }
+    });
+
+    const registeredUsers = Array.from(knownUsersMap.values());
+
+    // Union-Find gom nhóm các liên kết định danh
+    const parent = new Map();
+    function find(x) {
+      if (!parent.has(x)) parent.set(x, x);
+      let p = parent.get(x);
+      if (p !== x) {
+        p = find(p);
+        parent.set(x, p);
+      }
+      return p;
+    }
+    function union(a, b) {
+      if (!a || !b) return;
+      const rootA = find(a);
+      const rootB = find(b);
+      if (rootA !== rootB) {
+        parent.set(rootB, rootA);
+      }
+    }
+
+    // Liên kết khóa từ tài khoản người dùng đăng ký
+    for (const u of registeredUsers) {
+      const idKey = `id:${u._id}`;
+      const emailKey = u.email ? `email:${normalizeEmail(u.email)}` : null;
+      const phoneKey = u.phone ? `phone:${normalizePhone(u.phone)}` : null;
+
+      find(idKey);
+      if (emailKey) union(idKey, emailKey);
+      if (phoneKey) union(idKey, phoneKey);
+    }
+
+    // Liên kết khóa từ toàn bộ đơn hàng
+    if (Array.isArray(allOrdersSnapshot)) {
+      for (const o of allOrdersSnapshot) {
+        if (!o) continue;
+        const rawId =
+          o.user?._id ||
+          o.user?.id ||
+          (typeof o.user === "string" ? o.user : null) ||
+          o.userId ||
+          o.customerId;
+        const idKey = rawId ? `id:${rawId}` : null;
+        const email = normalizeEmail(o.user?.email || o.receiverEmail);
+        const emailKey = email ? `email:${email}` : null;
+        const phone = normalizePhone(o.user?.phone || o.receiverPhone);
+        const phoneKey = phone ? `phone:${phone}` : null;
+
+        const primary = idKey || emailKey || phoneKey;
+        if (!primary) continue;
+        find(primary);
+        if (idKey && primary !== idKey) union(primary, idKey);
+        if (emailKey && primary !== emailKey) union(primary, emailKey);
+        if (phoneKey && primary !== phoneKey) union(primary, phoneKey);
+      }
+    }
+
+    // Khởi tạo đối tượng khách hàng cho mỗi cụm
+    const clusterMap = new Map();
+    function getCustomerForRoot(rootKey) {
+      if (!clusterMap.has(rootKey)) {
+        clusterMap.set(rootKey, {
+          _id: rootKey,
+          registeredUserId: null,
+          name: "",
+          email: "",
+          phone: "",
+          address: "",
+          image: "",
+          role: "customer",
+          isStaffOrAdmin: false,
+          isOnline: false,
+          lastActive: null,
+          isBlocked: false,
+          blockReason: "",
+          createdAt: null,
+          updatedAt: null,
+          totalSpent: 0,
+          completedOrdersCount: 0,
+          validOrdersCount: 0,
+          totalOrdersCount: 0,
+          orders: [],
+        });
+      }
+      return clusterMap.get(rootKey);
+    }
+
+    // Đổ dữ liệu từ tài khoản đăng ký
+    for (const u of registeredUsers) {
+      const rootKey = find(`id:${u._id}`);
+      const cust = getCustomerForRoot(rootKey);
+
+      cust._id = u._id;
+      cust.registeredUserId = u._id;
+      cust.name = u.name || cust.name;
+      cust.email = u.email || cust.email;
+      cust.phone = u.phone || cust.phone;
+      cust.address = u.address || cust.address;
+      cust.image = u.image || cust.image;
+      cust.role = u.role || cust.role;
+      cust.isOnline = u.isOnline ?? cust.isOnline;
+      cust.lastActive = u.lastActive ?? cust.lastActive;
+      cust.isBlocked = u.isBlocked ?? cust.isBlocked;
+      cust.blockReason = u.blockReason ?? cust.blockReason;
+      cust.createdAt = u.createdAt ?? cust.createdAt;
+      cust.updatedAt = u.updatedAt ?? cust.updatedAt;
+
+      const r = roleOf(u);
+      if (
+        r === "admin" ||
+        r === "superadmin" ||
+        r === "staff" ||
+        r === "quảntrịviên" ||
+        r === "quảnlýcửahàng"
+      ) {
+        cust.isStaffOrAdmin = true;
+      }
+    }
+
+    // Đổ dữ liệu và cộng dồn chi tiêu từ toàn bộ đơn hàng
+    if (Array.isArray(allOrdersSnapshot)) {
+      for (const o of allOrdersSnapshot) {
+        if (!o) continue;
+        const rawId =
+          o.user?._id ||
+          o.user?.id ||
+          (typeof o.user === "string" ? o.user : null) ||
+          o.userId ||
+          o.customerId;
+        const idKey = rawId ? `id:${rawId}` : null;
+        const email = normalizeEmail(o.user?.email || o.receiverEmail);
+        const emailKey = email ? `email:${email}` : null;
+        const phone = normalizePhone(o.user?.phone || o.receiverPhone);
+        const phoneKey = phone ? `phone:${phone}` : null;
+
+        const anyKey = idKey || emailKey || phoneKey;
+        const rootKey = anyKey ? find(anyKey) : `order:${o._id}`;
+        const cust = getCustomerForRoot(rootKey);
+
+        if (!cust.name) cust.name = o.receiverName || o.user?.name || "Khách hàng";
+        if (!cust.email && email) cust.email = email;
+        if (!cust.phone && (o.receiverPhone || o.user?.phone)) {
+          cust.phone = o.receiverPhone || o.user?.phone;
+        }
+        if (!cust.address && o.deliveryAddress) cust.address = o.deliveryAddress;
+        if (!cust.image && o.user?.image) cust.image = o.user.image;
+        if (!cust.createdAt && o.createdAt) cust.createdAt = o.createdAt;
+
+        const orderAmount = Number(
+          o.totalAmount ??
+            o.totalPrice ??
+            o.amount ??
+            o.total ??
+            o.orderAmount ??
+            o.totalRevenue ??
+            o.revenue ??
+            0
+        ) || 0;
+
+        cust.totalOrdersCount++;
+        cust.orders.push(o);
+
+        const st = String(o.status || "").trim().toLowerCase();
+        const isCancelled = st.includes("hủy") || st.includes("cancel");
+        const isCompleted =
+          st.includes("hoàn thành") ||
+          st.includes("đã giao") ||
+          st.includes("thành công") ||
+          st.includes("completed") ||
+          st.includes("delivered");
+
+        if (!isCancelled && orderAmount > 0) {
+          cust.totalSpent += orderAmount;
+          cust.validOrdersCount++;
+          if (isCompleted) {
+            cust.completedOrdersCount++;
+          }
+        }
+      }
+    }
+
+    const byId = new Map();
+    const byEmail = new Map();
+    const byPhone = new Map();
+    const allCustomersList = [];
+
+    for (const cust of clusterMap.values()) {
+      if (!cust.name) cust.name = "Khách hàng";
+      if (!cust.completedOrdersCount && cust.validOrdersCount) {
+        cust.completedOrdersCount = cust.validOrdersCount;
+      }
+
+      allCustomersList.push(cust);
+
+      if (cust._id) byId.set(cust._id, cust);
+      if (cust.registeredUserId) byId.set(cust.registeredUserId, cust);
+      if (cust.email) byEmail.set(normalizeEmail(cust.email), cust);
+      if (cust.phone) {
+        const ph = normalizePhone(cust.phone);
+        if (ph) byPhone.set(ph, cust);
+      }
+    }
+
+    return {
+      spendingMap: byId,
+      spendingMapByEmail: byEmail,
+      spendingMapByPhone: byPhone,
+      allSystemCustomers: allCustomersList,
+    };
+  }, [allRegisteredUsersSnapshot, users, allOrdersSnapshot]);
+
+  // Tra cứu chi tiêu chuẩn xác cho 1 khách hàng/người dùng
   function getUserStats(x) {
-    const s = userOrderStats[x._id] || {};
+    if (!x) return { totalSpent: 0, completedOrdersCount: 0, totalOrdersCount: 0 };
+    const fromId = x._id ? spendingMap.get(x._id) : null;
+    const fromEmail = x.email ? spendingMapByEmail.get(normalizeEmail(x.email)) : null;
+    const fromPhone = x.phone ? spendingMapByPhone.get(normalizePhone(x.phone)) : null;
+    const candidate = fromId || fromEmail || fromPhone || x;
+
     return {
       totalSpent: Number(
-        s.totalSpent ?? x.totalSpent ?? x.stats?.totalSpent ?? 0
+        candidate.totalSpent ??
+          x.totalSpent ??
+          x.stats?.totalSpent ??
+          0
       ),
       completedOrdersCount: Number(
-        s.completedOrdersCount ??
+        candidate.completedOrdersCount ??
           x.completedOrdersCount ??
           x.stats?.completedOrdersCount ??
           0
       ),
       totalOrdersCount: Number(
-        s.totalOrdersCount ?? x.totalOrdersCount ?? x.stats?.totalOrdersCount ?? 0
+        candidate.totalOrdersCount ??
+          x.totalOrdersCount ??
+          x.stats?.totalOrdersCount ??
+          0
       ),
     };
   }
@@ -161,7 +458,6 @@ export default function Users({ user, notify }) {
     async (targetPage = page, queryTerm = term, typeFilter = filter, forceRefresh = false) => {
       const cacheKey = `${typeFilter}::${(queryTerm || "").trim()}::${targetPage}`;
 
-      // Nếu đã có trong cache và không phải forceRefresh: lấy ngay từ cache, không fetch lại
       if (!forceRefresh && pageCacheRef.current[cacheKey]) {
         setUsers(pageCacheRef.current[cacheKey]);
         setLoading(false);
@@ -169,7 +465,6 @@ export default function Users({ user, notify }) {
         return;
       }
 
-      // Kích hoạt lazy load khi vào lần đầu hoặc sang trang chưa có trong cache
       setLoading(true);
       setError("");
       try {
@@ -296,71 +591,126 @@ export default function Users({ user, notify }) {
     setVipTierFilter("");
     setMinSpentFilter("");
     setMinOrdersFilter("");
+    setVipPage(1);
   }
 
-  // US24 AC1: Lọc danh sách người dùng hiển thị theo thứ hạng và tiêu chí VIP
-  const displayedUsers = useMemo(() => {
-    if (!hasVipFilters) return users;
-    return users.filter((x) => {
-      const targetRole = roleOf(x);
-      const isStaffOrAdmin =
-        targetRole === "admin" ||
-        targetRole === "superadmin" ||
-        targetRole === "staff" ||
-        targetRole === "quảntrịviên" ||
-        targetRole === "quảnlýcửahàng";
+  // US24 AC1: Lọc trên TOÀN BỘ khách hàng trong hệ thống (toàn bộ database)
+  const allFilteredVipCustomers = useMemo(() => {
+    if (!hasVipFilters) return [];
 
-      const stats = getUserStats(x);
-      const tier = getVipTier(stats.totalSpent, stats.completedOrdersCount);
+    const querySearch = term.toLowerCase().trim();
 
-      if (vipTierFilter) {
-        if (isStaffOrAdmin) return false;
-        if (tier.key !== vipTierFilter) return false;
-      }
-      if (minSpentFilter !== "") {
-        if (isStaffOrAdmin) return false;
-        if (stats.totalSpent < Number(minSpentFilter)) return false;
-      }
-      if (minOrdersFilter !== "") {
-        if (isStaffOrAdmin) return false;
-        if (stats.completedOrdersCount < Number(minOrdersFilter)) return false;
-      }
-      return true;
-    });
+    return allSystemCustomers
+      .filter((c) => {
+        // Lọc theo vai trò trên toolbar
+        if (filter === "customer" && c.isStaffOrAdmin) return false;
+        if (filter === "staff" && !c.isStaffOrAdmin) return false;
+
+        const stats = getUserStats(c);
+        const tier = getVipTier(stats.totalSpent, stats.completedOrdersCount);
+
+        // Lọc theo hạng VIP
+        if (vipTierFilter === "top_spent") {
+          // Lọc tất cả khách hàng đã từng phát sinh đơn hàng
+          if (stats.totalSpent <= 0 && stats.totalOrdersCount <= 0) {
+            return false;
+          }
+        } else if (vipTierFilter && tier.key !== vipTierFilter) {
+          return false;
+        }
+
+        // Lọc theo chi tiêu tối thiểu (VNĐ)
+        if (minSpentFilter !== "") {
+          const minVal = Number(minSpentFilter);
+          if (isNaN(minVal) || stats.totalSpent < minVal) {
+            return false;
+          }
+        }
+
+        // Lọc theo số đơn hoàn thành tối thiểu
+        if (minOrdersFilter !== "") {
+          const minO = Number(minOrdersFilter);
+          if (isNaN(minO) || stats.completedOrdersCount < minO) {
+            return false;
+          }
+        }
+
+        // Lọc theo từ khóa tìm kiếm
+        if (querySearch) {
+          const nameNorm = (c.name || "").toLowerCase();
+          const emailNorm = (c.email || "").toLowerCase();
+          const phoneNorm = normalizePhone(c.phone);
+          if (
+            !nameNorm.includes(querySearch) &&
+            !emailNorm.includes(querySearch) &&
+            !phoneNorm.includes(querySearch)
+          ) {
+            return false;
+          }
+        }
+
+        return true;
+      })
+      .sort((a, b) => {
+        // Sắp xếp khách hàng mua nhiều nhất lên đầu
+        const statsA = getUserStats(a);
+        const statsB = getUserStats(b);
+        if (statsB.totalSpent !== statsA.totalSpent) {
+          return statsB.totalSpent - statsA.totalSpent;
+        }
+        return statsB.completedOrdersCount - statsA.completedOrdersCount;
+      });
   }, [
-    users,
-    userOrderStats,
+    allSystemCustomers,
+    hasVipFilters,
     vipTierFilter,
     minSpentFilter,
     minOrdersFilter,
-    hasVipFilters,
+    filter,
+    term,
   ]);
+
+  // Danh sách dòng hiển thị trên bảng
+  const pageSize = 10;
+  const vipTotalPages = Math.max(
+    1,
+    Math.ceil(allFilteredVipCustomers.length / pageSize)
+  );
+
+  const displayedUsers = useMemo(() => {
+    if (hasVipFilters) {
+      return allFilteredVipCustomers.slice(
+        (vipPage - 1) * pageSize,
+        vipPage * pageSize
+      );
+    }
+    return users;
+  }, [hasVipFilters, allFilteredVipCustomers, vipPage, users]);
 
   // US24 AC3: Xuất danh sách khách hàng thân thiết (VIP) kèm Email/SĐT sang file CSV
   function handleExportVipCsv() {
     try {
-      // Xác định tập danh sách khách hàng cần xuất (loại bỏ nhân viên/admin)
-      let targetList = users.filter((x) => {
-        const r = roleOf(x);
-        return !(
-          r === "admin" ||
-          r === "superadmin" ||
-          r === "staff" ||
-          r === "quảntrịviên" ||
-          r === "quảnlýcửahàng"
-        );
-      });
+      let targetList = hasVipFilters
+        ? allFilteredVipCustomers
+        : allSystemCustomers
+            .filter((c) => {
+              if (filter === "customer" && c.isStaffOrAdmin) return false;
+              if (filter === "staff" && !c.isStaffOrAdmin) return false;
+              const stats = getUserStats(c);
+              const tier = getVipTier(stats.totalSpent, stats.completedOrdersCount);
+              return tier.isVip || stats.totalSpent > 0;
+            })
+            .sort((a, b) => {
+              const statsA = getUserStats(a);
+              const statsB = getUserStats(b);
+              return statsB.totalSpent - statsA.totalSpent;
+            });
 
-      if (hasVipFilters) {
-        targetList = displayedUsers.filter((x) => {
-          const r = roleOf(x);
-          return !(
-            r === "admin" ||
-            r === "superadmin" ||
-            r === "staff" ||
-            r === "quảntrịviên" ||
-            r === "quảnlýcửahàng"
-          );
+      if (!targetList.length) {
+        targetList = allSystemCustomers.filter((c) => {
+          if (filter === "customer" && c.isStaffOrAdmin) return false;
+          if (filter === "staff" && !c.isStaffOrAdmin) return false;
+          return true;
         });
       }
 
@@ -378,6 +728,7 @@ export default function Users({ user, notify }) {
         "Nhóm VIP",
         "Tổng chi tiêu (VNĐ)",
         "Số đơn hoàn thành",
+        "Tổng số đơn",
         "Địa chỉ",
         "Ngày tham gia",
       ];
@@ -407,6 +758,7 @@ export default function Users({ user, notify }) {
           tier.isVip ? "Khách VIP" : "Thành viên thường",
           stats.totalSpent,
           stats.completedOrdersCount,
+          stats.totalOrdersCount,
           (x.address || "").replace(/\r?\n|\r/g, " "),
           x.createdAt ? new Date(x.createdAt).toLocaleDateString("vi-VN") : "",
         ];
@@ -496,7 +848,7 @@ export default function Users({ user, notify }) {
             type="button"
             className="export-csv-btn"
             onClick={handleExportVipCsv}
-            title="Xuất file CSV danh sách khách hàng thân thiết kèm Email/SĐT để phục vụ gửi voucher tri ân"
+            title="Xuất file CSV danh sách khách hàng thân thiết kèm Email/SĐT để phục vụ gửi voucher tri anh"
           >
             <svg
               width="15"
@@ -526,9 +878,15 @@ export default function Users({ user, notify }) {
             <select
               value={vipTierFilter}
               aria-label="Lọc theo hạng VIP"
-              onChange={(e) => setVipTierFilter(e.target.value)}
+              onChange={(e) => {
+                setVipTierFilter(e.target.value);
+                setVipPage(1);
+              }}
             >
-              <option value="">Tất cả hạng thành viên</option>
+              <option value="">Tất cả hạng thành viên (Mặc định)</option>
+              <option value="top_spent">
+                ⭐ Tất cả khách hàng có đơn (Chi tiêu cao → thấp)
+              </option>
               <option value="diamond">
                 💎 Kim Cương (&gt; 20 triệu hoặc &gt; 10 đơn)
               </option>
@@ -542,7 +900,10 @@ export default function Users({ user, notify }) {
               min="0"
               step="500000"
               value={minSpentFilter}
-              onChange={(e) => setMinSpentFilter(e.target.value)}
+              onChange={(e) => {
+                setMinSpentFilter(e.target.value);
+                setVipPage(1);
+              }}
               placeholder="Chi tiêu tối thiểu (VNĐ)…"
               title="Lọc theo chi tiêu tích lũy tối thiểu (VNĐ)"
             />
@@ -552,7 +913,10 @@ export default function Users({ user, notify }) {
               min="0"
               step="1"
               value={minOrdersFilter}
-              onChange={(e) => setMinOrdersFilter(e.target.value)}
+              onChange={(e) => {
+                setMinOrdersFilter(e.target.value);
+                setVipPage(1);
+              }}
               placeholder="Số đơn tối thiểu…"
               title="Lọc theo số đơn hoàn thành tối thiểu"
             />
@@ -573,14 +937,19 @@ export default function Users({ user, notify }) {
         {/* List Heading */}
         <div className="list-heading">
           <span>
-            {displayedUsers.length > 0
+            {hasVipFilters
+              ? `${allFilteredVipCustomers.length} khách hàng tìm thấy · Trang ${vipPage} / ${vipTotalPages} (Bộ lọc VIP)`
+              : displayedUsers.length > 0
               ? `${displayedUsers.length} người dùng hiển thị · Trang ${page}`
               : `Trang ${page}`}
-            {hasVipFilters && " (Đang áp dụng bộ lọc VIP)"}
           </span>
           <div className="actions">
             <button
-              onClick={() => loadUsers(page, term, filter, true)}
+              onClick={() => {
+                loadUsers(page, term, filter, true);
+                loadOrdersSnapshot(true);
+                loadAllRegisteredUsers();
+              }}
               aria-label="Làm mới danh sách"
               title="Làm mới danh sách"
             >
@@ -591,10 +960,14 @@ export default function Users({ user, notify }) {
 
         {/* State: Lazy load & Error & Empty */}
         <State
-          loading={loading}
+          loading={loading && displayedUsers.length === 0}
           error={error}
           empty={!loading && !error && displayedUsers.length === 0}
-          retry={() => loadUsers(page, term, filter, true)}
+          retry={() => {
+            loadUsers(page, term, filter, true);
+            loadOrdersSnapshot(true);
+            loadAllRegisteredUsers();
+          }}
         />
 
         {/* Bảng danh sách người dùng */}
@@ -619,7 +992,7 @@ export default function Users({ user, notify }) {
                     targetRole === "superadmin" ||
                     targetRole === "quảntrịviêntốicao";
                   const canManageLock =
-                    isSuper(user) && !isSelf && !isTargetSuper;
+                    isSuper(user) && !isSelf && !isTargetSuper && Boolean(x.registeredUserId || !String(x._id).startsWith("cust-"));
                   const roleInfo = getRoleBadge(x.role);
                   const isCustomer = roleInfo.label === "Khách hàng";
                   const stats = getUserStats(x);
@@ -634,7 +1007,7 @@ export default function Users({ user, notify }) {
                         <div
                           className="identity"
                           style={{ cursor: "pointer" }}
-                          onClick={() => setProfileUserId(x._id)}
+                          onClick={() => setProfileCustomer(x)}
                           title="Nhấn để xem chi tiết hồ sơ & lịch sử mua"
                         >
                           <Photo src={x.image} name={x.name || x.email} />
@@ -656,7 +1029,7 @@ export default function Users({ user, notify }) {
                                 )}
                               </strong>
                               {/* US24 AC2: Hiển thị Huy hiệu phân hạng (VIP Badge) ngay cạnh tên khách hàng */}
-                              {isCustomer && (
+                              {(isCustomer || stats.totalSpent > 0 || stats.completedOrdersCount > 0) && (
                                 <span
                                   className={`vip-badge ${tier.badgeClass}`}
                                   title={`Hạng ${tier.name} · Chi tiêu: ${money(stats.totalSpent)} · ${stats.completedOrdersCount} đơn hoàn thành`}
@@ -674,7 +1047,7 @@ export default function Users({ user, notify }) {
                       </td>
                       <td>
                         {x.phone || "—"}
-                        {isCustomer && (
+                        {(isCustomer || stats.totalSpent > 0 || stats.completedOrdersCount > 0) && (
                           <small
                             className="vip-stats-subtext"
                             title="Tổng chi tiêu tích lũy và số đơn hoàn thành"
@@ -736,11 +1109,11 @@ export default function Users({ user, notify }) {
                           )}
                         </div>
                       </td>
-                      <td>{date(x.createdAt)}</td>
+                      <td>{x.createdAt ? date(x.createdAt) : "—"}</td>
                       <td className="align-right">
                         <div className="actions end">
                           <button
-                            onClick={() => setProfileUserId(x._id)}
+                            onClick={() => setProfileCustomer(x)}
                             title="Xem chi tiết hồ sơ & lịch sử đơn hàng"
                           >
                             Hồ sơ
@@ -792,17 +1165,37 @@ export default function Users({ user, notify }) {
           </div>
         )}
 
-        {/* Phân trang: Trước / Sau với Lazy load & Cache */}
-        {!loading && users.length > 0 && (
+        {/* Phân trang: Trước / Sau linh hoạt cho cả chế độ thường và bộ lọc VIP */}
+        {!loading && (hasVipFilters ? allFilteredVipCustomers.length > 0 : users.length > 0) && (
           <div className="pager">
             <span>
-              {users.length} người dùng · Trang {page}
+              {hasVipFilters
+                ? `${allFilteredVipCustomers.length} khách hàng · Trang ${vipPage} / ${vipTotalPages}`
+                : `${users.length} người dùng · Trang ${page}`}
             </span>
             <div>
-              <button disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+              <button
+                disabled={hasVipFilters ? vipPage <= 1 : page <= 1}
+                onClick={() => {
+                  if (hasVipFilters) {
+                    setVipPage((p) => Math.max(1, p - 1));
+                  } else {
+                    setPage((p) => Math.max(1, p - 1));
+                  }
+                }}
+              >
                 Trước
               </button>
-              <button disabled={!hasNext} onClick={() => setPage((p) => p + 1)}>
+              <button
+                disabled={hasVipFilters ? vipPage >= vipTotalPages : !hasNext}
+                onClick={() => {
+                  if (hasVipFilters) {
+                    setVipPage((p) => Math.min(vipTotalPages, p + 1));
+                  } else {
+                    setPage((p) => p + 1);
+                  }
+                }}
+              >
                 Sau
               </button>
             </div>
@@ -995,28 +1388,53 @@ export default function Users({ user, notify }) {
       )}
 
       {/* Modal Xem chi tiết hồ sơ khách hàng & lịch sử đơn hàng (US25) */}
-      {profileUserId && (
+      {profileCustomer && (
         <CustomerProfileModal
-          userId={profileUserId}
+          userId={profileCustomer.registeredUserId || profileCustomer._id}
+          customerData={profileCustomer}
           user={user}
           notify={notify}
-          close={() => setProfileUserId(null)}
+          close={() => setProfileCustomer(null)}
         />
       )}
     </>
   );
 }
 
-export function CustomerProfileModal({ userId, user, close, notify }) {
+export function CustomerProfileModal({ userId, user, close, notify, customerData }) {
+  const isCustomCustomer =
+    !userId ||
+    String(userId).startsWith("cust-") ||
+    String(userId).startsWith("order:") ||
+    String(userId).startsWith("id:") ||
+    String(userId).startsWith("email:") ||
+    String(userId).startsWith("phone:");
+
   const { data, loading, error, reload } = useResource(
-    `${U}/customer-profile/${userId}`
+    isCustomCustomer ? null : `${U}/customer-profile/${userId}`
   );
   const [viewingOrderId, setViewingOrderId] = useState(null);
 
   const payload = data?.data;
-  const profile = payload?.profile;
-  const stats = payload?.stats;
-  const orders = payload?.orders || [];
+  const profile =
+    payload?.profile || (isCustomCustomer || error ? customerData : null);
+  const stats =
+    payload?.stats ||
+    (isCustomCustomer || error
+      ? {
+          totalSpent: customerData?.totalSpent || 0,
+          totalOrders:
+            customerData?.totalOrdersCount || customerData?.orders?.length || 0,
+          statusCounts: {
+            completed: customerData?.completedOrdersCount || 0,
+            pending: 0,
+            processing: 0,
+            shipping: 0,
+          },
+        }
+      : null);
+  const orders =
+    payload?.orders || (isCustomCustomer || error ? customerData?.orders || [] : []);
   const roleInfo = getRoleBadge(profile?.role);
 
   return (
@@ -1033,7 +1451,11 @@ export function CustomerProfileModal({ userId, user, close, notify }) {
         className="modal-wide"
       >
         <div className="modal-body">
-          <State {...{ loading, error }} retry={reload} />
+          <State
+            loading={!isCustomCustomer && loading}
+            error={!isCustomCustomer && !customerData ? error : ""}
+            retry={reload}
+          />
 
           {profile && (
             <>
