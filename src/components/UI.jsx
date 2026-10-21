@@ -133,18 +133,37 @@ export function Modal({ title, children, close, busy = false, className = "" }) 
   const ref = useRef(null);
   useEffect(() => {
     const dialog = ref.current;
+    if (!dialog) return;
     const previous = document.activeElement;
-    dialog.showModal();
+    if (!dialog.open) {
+      dialog.showModal();
+    }
+    const handleCancel = (e) => {
+      // Khi người dùng cancel ở file picker (input type="file"), sự kiện cancel xuất phát từ input
+      // chứ không phải từ chính dialog. Ta cần chặn sự kiện này để không đóng modal.
+      if (e.target !== dialog) {
+        e.stopPropagation();
+        return;
+      }
+      e.preventDefault();
+      if (!busy) close();
+    };
+    dialog.addEventListener("cancel", handleCancel);
     return () => {
+      dialog.removeEventListener("cancel", handleCancel);
       dialog.close();
       previous?.focus();
     };
-  }, []);
+  }, [busy, close]);
   return (
     <dialog
       ref={ref}
       className={`modal ${className}`.trim()}
       onCancel={(e) => {
+        if (e.target !== e.currentTarget && e.target !== ref.current) {
+          e.stopPropagation();
+          return;
+        }
         e.preventDefault();
         if (!busy) close();
       }}
@@ -180,6 +199,7 @@ export function FileField({ required = false }) {
         type="file"
         accept="image/png,image/jpeg,image/webp,image/gif"
         required={required}
+        onCancel={(e) => e.stopPropagation()}
         onChange={(e) => {
           const f = e.target.files[0];
           e.target.setCustomValidity(
