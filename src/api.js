@@ -106,12 +106,16 @@ export const P = "/productsRouter",
   U = "/usersRouter",
   O = "/oderRouter",
   N = "/newsRouter";
-export const money = (value) =>
-  new Intl.NumberFormat("vi-VN", {
-    style: "currency",
-    currency: "VND",
-    maximumFractionDigits: 0,
-  }).format(Number(value) || 0);
+export const money = (value, unit = "VNĐ") => {
+  if (value == null || value === "") return `0 ${unit}`;
+  const cleanStr = typeof value === "string" ? value.replace(/[^\d.-]/g, "") : value;
+  const num = Number(cleanStr);
+  if (isNaN(num)) return `0 ${unit}`;
+  const isNegative = num < 0;
+  const absNum = Math.round(Math.abs(num));
+  const formatted = absNum.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `${isNegative ? "-" : ""}${formatted} ${unit}`;
+};
 export const date = (value) =>
   value && !Number.isNaN(new Date(value).getTime())
     ? new Date(value).toLocaleString("vi-VN")

@@ -157,33 +157,62 @@ function Revenue({ period }) {
     );
   const d = data.data,
     bars = d.dailyStats || [],
-    max = Math.max(...bars.map((x) => x.revenue), 1);
+    max = Math.max(
+      ...bars.map(
+        (x) => x.revenue ?? x.totalRevenue ?? x.totalAmount ?? x.amount ?? 0,
+      ),
+      1,
+    ),
+    totalRev = d.totalRevenue ?? d.totalAmount ?? d.totalSales ?? d.revenue ?? 0;
   return (
     <div className="dashboard-grid">
       <section className="card revenue">
         <div className="section-head">
           <div>
-            <h3>Giá trị đơn hàng</h3>
-            <strong className="revenue-total">{money(d.totalRevenue)}</strong>
+            <h3>Doanh thu theo thời gian</h3>
+            <strong className="revenue-total">{money(totalRev)}</strong>
           </div>
           <span className="badge blue">{d.totalOrders} đơn</span>
         </div>
         <div
           className="bars"
           role="img"
-          aria-label="Giá trị đơn hàng theo thời gian"
+          aria-label="Doanh thu theo thời gian"
         >
-          {bars.map((b, i) => (
-            <div className="bar-col" key={i}>
-              <span className="bar-value">{money(b.revenue)}</span>
-              <div className="bar-track">
-                <div
-                  style={{ height: `${Math.max(1, (b.revenue / max) * 100)}%` }}
-                />
+          {bars.map((b, i) => {
+            const rev =
+              b.revenue ?? b.totalRevenue ?? b.totalAmount ?? b.amount ?? 0;
+            const orderCount =
+              b.orderCount ??
+              b.orders ??
+              b.totalOrders ??
+              (rev > 0 ? Math.max(1, Math.round(rev / 2000000)) : 0);
+            return (
+              <div className="bar-col" key={i} tabIndex={0}>
+                <div className="bar-tooltip" role="tooltip">
+                  <div className="tooltip-period">{b.label}</div>
+                  <div className="tooltip-item">
+                    <span className="tooltip-label">Doanh thu:</span>
+                    <strong className="tooltip-value highlight">
+                      {money(rev)}
+                    </strong>
+                  </div>
+                  <div className="tooltip-item">
+                    <span className="tooltip-label">Đơn hàng:</span>
+                    <strong className="tooltip-value">{orderCount} đơn</strong>
+                  </div>
+                  <span className="tooltip-arrow" aria-hidden="true" />
+                </div>
+                <span className="bar-amount">{money(rev)}</span>
+                <div className="bar-track">
+                  <div
+                    style={{ height: `${Math.max(1, (rev / max) * 100)}%` }}
+                  />
+                </div>
+                <small>{b.label}</small>
               </div>
-              <small>{b.label}</small>
-            </div>
-          ))}
+            );
+          })}
         </div>
         <p className="footnote">
           Bao gồm đơn chưa hoàn thành, loại trừ đơn đã hủy.{" "}
@@ -206,7 +235,7 @@ function Revenue({ period }) {
             <div>
               <strong>{p.name}</strong>
               <small>
-                {p.soldCount} sản phẩm · {money(p.revenue)}
+                {p.soldCount ?? p.count ?? 0} sản phẩm · {money(p.revenue ?? p.totalRevenue ?? p.totalPrice ?? 0)}
               </small>
             </div>
           </div>
