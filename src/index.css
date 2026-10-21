@@ -1546,9 +1546,6 @@ tbody tr:hover {
   object-fit: contain;
   transition: transform 0.2s ease;
 }
-.detail-main-photo img:hover {
-  transform: scale(1.03);
-}
 .photo-placeholder {
   color: #cbd5e1;
   display: flex;
@@ -1610,7 +1607,7 @@ tbody tr:hover {
   gap: 6px;
   background: #fff;
   border: 1px solid #e2e8f0;
-  border-radius: 20px;
+  border-radius: 4px;
   padding: 4px 10px;
   font-size: 11px;
   color: #334155;
@@ -1662,7 +1659,7 @@ tbody tr:hover {
   color: #3568e8;
   background: #eff6ff;
   padding: 3px 10px;
-  border-radius: 20px;
+  border-radius: 4px;
   letter-spacing: 0.3px;
 }
 .detail-product-title {
@@ -1975,7 +1972,6 @@ tbody tr:hover {
   padding: 2px 6px;
   border-radius: 4px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-  letter-spacing: 0.2px;
 }
 
 .btn-set-main {
@@ -2060,14 +2056,8 @@ tbody tr:hover {
   user-select: none;
 }
 
-.stock-cell-button:hover {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-}
-
 .stock-cell-button:hover .stock-edit-icon {
   color: #2563eb;
-  transform: scale(1.1);
 }
 
 .stock-edit-icon {
@@ -2442,6 +2432,88 @@ tbody tr:hover {
   font-size: 10px;
   font-family: monospace;
 }
+
+/* US14: Category Slug, Description & Duplicate Validation */
+.slug-input-wrapper {
+  display: flex;
+  align-items: center;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.slug-input-wrapper:focus-within {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.slug-prefix {
+  padding: 0 10px;
+  background: #f1f5f9;
+  border-right: 1px solid #cbd5e1;
+  color: #64748b;
+  font-size: 11.5px;
+  font-family: monospace;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  user-select: none;
+}
+
+.slug-input-wrapper input {
+  flex: 1;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 10px 12px !important;
+  font-size: 12.5px;
+  color: #0f172a;
+  outline: none;
+  box-shadow: none !important;
+  font-family: monospace;
+  background: transparent;
+}
+
+.slug-input-wrapper input:focus {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.btn-resync-slug {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  margin: 4px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #475569;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.btn-resync-slug:hover {
+  background: #eff6ff;
+  color: #2563eb;
+  border-color: #bfdbfe;
+}
+
+.field-duplicate-warning {
+  margin: 5px 0 0;
+  font-size: 11.5px;
+  color: #dc2626;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 
 
 

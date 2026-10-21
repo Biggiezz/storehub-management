@@ -145,3 +145,18 @@ export function nextStatuses(status, user) {
     options.push("Đã hủy");
   return options;
 }
+
+export function toSlug(str) {
+  if (!str) return "";
+  return str
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // Xóa dấu tiếng Việt
+    .replace(/[đĐ]/g, "d")           // Chuyển đ -> d
+    .replace(/&/g, " ")             // Chuyển & thành khoảng trắng
+    .replace(/[^a-z0-9\s-]/g, "")   // Bỏ ký tự đặc biệt
+    .trim()
+    .replace(/\s+/g, "-")           // Chuyển khoảng trắng thành gạch ngang
+    .replace(/-+/g, "-");           // Bỏ gạch ngang liên tiếp
+}
+
