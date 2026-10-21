@@ -1,5 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { request } from "../api";
+import {
+  getActivityList,
+  getAccount,
+  getAction,
+  getTimestamp,
+  formatDate,
+  getBefore,
+  getAfter,
+  getIp,
+  getActivityId,
+} from "../services/activityLogHelpers";
+import ActivityDetailModal from "../components/activity/ActivityDetailModal";
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
@@ -95,169 +107,7 @@ const styles = {
     borderRadius: "8px",
     marginBottom: "16px",
   },
-  overlay: {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(15, 23, 42, 0.55)",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: "16px",
-    zIndex: 1000,
-  },
-  modal: {
-    background: "#fff",
-    borderRadius: "12px",
-    padding: "24px",
-    width: "min(760px, 100%)",
-    maxHeight: "85vh",
-    overflowY: "auto",
-    boxSizing: "border-box",
-  },
-  pre: {
-    background: "#f8fafc",
-    padding: "12px",
-    borderRadius: "8px",
-    border: "1px solid #e2e8f0",
-    overflowX: "auto",
-    whiteSpace: "pre-wrap",
-    overflowWrap: "anywhere",
-    fontSize: "13px",
-  },
 };
-
-function getFirst(object, keys) {
-  for (const key of keys) {
-    if (object?.[key] !== undefined && object?.[key] !== null) {
-      return object[key];
-    }
-  }
-  return undefined;
-}
-
-function getActivityList(response) {
-  if (Array.isArray(response)) return response;
-
-  if (Array.isArray(response?.data)) {
-    return response.data;
-  }
-
-  const candidates = [
-    response?.activities,
-    response?.content,
-    response?.items,
-    response?.results,
-    response?.logs,
-    response?.data?.activities,
-    response?.data?.items,
-    response?.data?.content,
-    response?.data?.results,
-  ];
-
-  return candidates.find(Array.isArray) ?? [];
-}
-
-function getAccount(activity) {
-  return (
-    activity?.customerName ||
-    activity?.username ||
-    activity?.userName ||
-    activity?.adminName ||
-    activity?.email ||
-    activity?.account ||
-    "Không xác định"
-  );
-}
-
-function getAction(activity) {
-  return (
-    activity?.title ||
-    activity?.detail ||
-    activity?.action ||
-    activity?.type ||
-    "Không xác định"
-  );
-}
-
-function getTimestamp(activity) {
-  return getFirst(activity, [
-    "timestamp",
-    "createdAt",
-    "created_at",
-    "occurredAt",
-    "time",
-    "date",
-    "performedAt",
-  ]);
-}
-
-function formatDate(value) {
-  if (!value) return "Không có dữ liệu";
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value);
-
-  return new Intl.DateTimeFormat("vi-VN", {
-    dateStyle: "short",
-    timeStyle: "medium",
-  }).format(date);
-}
-
-function formatValue(value) {
-  if (value === undefined || value === null || value === "") {
-    return "Không có dữ liệu";
-  }
-
-  if (typeof value === "string") {
-    try {
-      return JSON.stringify(JSON.parse(value), null, 2);
-    } catch {
-      return value;
-    }
-  }
-
-  return JSON.stringify(value, null, 2) ?? String(value);
-}
-
-function getBefore(activity) {
-  return getFirst(activity, [
-    "before",
-    "beforeData",
-    "oldValue",
-    "oldData",
-    "previousValue",
-    "previousData",
-    "oldValues",
-  ]);
-}
-
-function getAfter(activity) {
-  return getFirst(activity, [
-    "after",
-    "afterData",
-    "newValue",
-    "newData",
-    "currentValue",
-    "newValues",
-  ]);
-}
-
-function getIp(activity) {
-  return (
-    activity?.ipAddress ||
-    activity?.ip_address ||
-    activity?.ip ||
-    activity?.clientIp ||
-    "Chưa được cung cấp"
-  );
-}
-
-function getActivityId(activity, index) {
-  return (
-    getFirst(activity, ["id", "_id", "activityId", "logId"]) ??
-    `${getTimestamp(activity) ?? "activity"}-${index}`
-  );
-}
 
 export default function ActivityLog() {
   const [activities, setActivities] = useState([]);
@@ -443,72 +293,10 @@ export default function ActivityLog() {
         </div>
       </section>
 
-      {selectedActivity && (
-        <div
-          style={styles.overlay}
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
-              setSelectedActivity(null);
-            }
-          }}
-        >
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="activity-detail-title"
-            style={styles.modal}
-          >
-            <header
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                gap: 12,
-                marginBottom: 16,
-              }}
-            >
-              <h2
-                id="activity-detail-title"
-                style={{ margin: 0, fontSize: 21 }}
-              >
-                Chi tiết hoạt động
-              </h2>
-
-              <button
-                type="button"
-                style={styles.button}
-                onClick={() => setSelectedActivity(null)}
-                aria-label="Đóng chi tiết"
-              >
-                Đóng
-              </button>
-            </header>
-
-            <p>
-              <strong>Thời gian:</strong>{" "}
-              {formatDate(getTimestamp(selectedActivity))}
-            </p>
-            <p>
-              <strong>Tài khoản:</strong> {getAccount(selectedActivity)}
-            </p>
-            <p>
-              <strong>Hành động:</strong> {String(getAction(selectedActivity))}
-            </p>
-
-            <details style={{ marginTop: 16 }}>
-              <summary style={{ cursor: "pointer", fontWeight: 600 }}>
-                Xem dữ liệu nhật ký gốc
-              </summary>
-              <pre style={styles.pre}>{formatValue(selectedActivity)}</pre>
-            </details>
-
-            <p style={{ ...styles.muted, fontSize: 13, marginTop: 20 }}>
-              Nhật ký chỉ được xem. Trang này không cung cấp thao tác chỉnh sửa
-              hoặc xóa lịch sử.
-            </p>
-          </section>
-        </div>
-      )}
+      <ActivityDetailModal
+        activity={selectedActivity}
+        onClose={() => setSelectedActivity(null)}
+      />
     </main>
   );
 }
