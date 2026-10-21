@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   request,
   P,
@@ -245,6 +245,25 @@ function CatalogRows({
   categoryError,
 }) {
   const { data, loading, error, reload } = useResource(path);
+  const productsResource = useResource(
+    kind === "categories"
+      ? `${P}/search-product?limit=1000&showInactive=true`
+      : `${P}/get-categories`,
+  );
+
+  const categoryProductCounts = useMemo(() => {
+    const counts = {};
+    const prods = productsResource.data?.data;
+    if (Array.isArray(prods)) {
+      prods.forEach((p) => {
+        const catId = p.category?._id || p.category;
+        if (catId) {
+          counts[catId] = (counts[catId] || 0) + 1;
+        }
+      });
+    }
+    return counts;
+  }, [productsResource.data]);
   const [editing, setEditing] = useState(null),
     [detailing, setDetailing] = useState(null),
     [deleting, setDeleting] = useState(null),
@@ -419,6 +438,12 @@ function CatalogRows({
                     <th>Tồn kho</th>
                     <th>Trạng thái</th>
                   </>
+                ) : kind === "categories" ? (
+                  <>
+                    <th>Thứ tự hiển thị</th>
+                    <th>Số lượng sản phẩm</th>
+                    <th>Trạng thái</th>
+                  </>
                 ) : (
                   <>
                     <th>Trạng thái</th>
@@ -430,7 +455,7 @@ function CatalogRows({
               </tr>
             </thead>
             <tbody>
-              {rows.map((x) => (
+              {rows.map((x, idx) => (
                 <tr key={x._id}>
                   <td>
                     <div className="identity">
@@ -444,6 +469,10 @@ function CatalogRows({
                         {kind === "products" ? (
                           <small className="product-sku-code">
                             SKU: {x.sku || `#${(x._id || "").slice(-6).toUpperCase()}`}
+                          </small>
+                        ) : kind === "categories" ? (
+                          <small className="category-id-code">
+                            Mã: #{x._id ? x._id.slice(-6).toUpperCase() : ""}
                           </small>
                         ) : (
                           <small>
@@ -519,6 +548,40 @@ function CatalogRows({
                               : "Ngừng bán"}
                           </span>
                         </div>
+                      </td>
+                    </>
+                  ) : kind === "categories" ? (
+                    <>
+                      <td>
+                        <span
+                          className="category-order-badge"
+                          title={`Thứ tự ưu tiên sắp xếp: #${x.orderIndex || x.sortOrder || idx + 1}`}
+                        >
+                          <span className="order-hash">#</span>
+                          <strong>{x.orderIndex || x.sortOrder || idx + 1}</strong>
+                        </span>
+                      </td>
+                      <td>
+                        <span
+                          className={`category-product-count-badge ${
+                            (categoryProductCounts[x._id] ?? x.productCount ?? 0) === 0
+                              ? "empty"
+                              : ""
+                          }`}
+                        >
+                          <Icon name="products" size={13} />
+                          <strong>
+                            {categoryProductCounts[x._id] ??
+                              x.productCount ??
+                              0}
+                          </strong>
+                          <span>sản phẩm</span>
+                        </span>
+                      </td>
+                      <td>
+                        <Badge tone="green">
+                          {x.isActive === false ? "Tạm ẩn" : "Đang hiển thị"}
+                        </Badge>
                       </td>
                     </>
                   ) : (
@@ -1043,6 +1106,17 @@ function Editor({
             required
             maxLength={250}
           />
+          {kind === "categories" && (
+            <Field
+              label="Thứ tự hiển thị (trên trang chủ)"
+              name="orderIndex"
+              type="number"
+              min="1"
+              step="1"
+              defaultValue={item.orderIndex || item.sortOrder || 1}
+              placeholder="VD: 1, 2, 3..."
+            />
+          )}
           {kind === "products" && (
             <>
               <div className="two-col">
