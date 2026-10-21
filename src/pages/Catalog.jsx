@@ -77,6 +77,7 @@ export default function Catalog({ kind, user, notify }) {
     return "";
   });
   const [filter, setFilter] = useState(""),
+    [stockStatus, setStockStatus] = useState(""),
     [page, setPage] = useState(1);
 
   useEffect(() => {
@@ -96,6 +97,12 @@ export default function Catalog({ kind, user, notify }) {
   }, [kind]);
 
   const categories = useResource(`${P}/get-categories`);
+  const isSkuSearch =
+    kind === "products" &&
+    term &&
+    (term.trim().startsWith("#") ||
+      (/^[a-fA-F0-9]{4,8}$/.test(term.trim()) && !term.includes(" ")));
+
   const path =
     c.base +
     c.list +
@@ -103,7 +110,11 @@ export default function Catalog({ kind, user, notify }) {
       page,
       limit: 10,
       ...(kind === "products"
-        ? { keyword: term, showInactive: true, category: filter }
+        ? {
+            keyword: isSkuSearch ? "" : term,
+            showInactive: true,
+            category: filter,
+          }
         : kind === "news"
           ? { status: filter }
           : {}),
@@ -124,7 +135,9 @@ export default function Catalog({ kind, user, notify }) {
             <input
               aria-label="Tìm kiếm"
               placeholder={
-                kind === "news"
+                kind === "products"
+                  ? "Tìm theo tên hoặc mã SKU…"
+                  : kind === "news"
                   ? "Tìm tiêu đề trong trang hiện tại…"
                   : `Tìm kiếm ${c.singular}…`
               }
@@ -175,10 +188,35 @@ export default function Catalog({ kind, user, notify }) {
               )}
             </select>
           )}
+          {kind === "products" && (
+            <select
+              aria-label="Trạng thái kho"
+              value={stockStatus}
+              onChange={(e) => {
+                setStockStatus(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">Tất cả trạng thái kho</option>
+              <option value="in_stock">Còn hàng</option>
+              <option value="low_stock">Sắp hết hàng</option>
+              <option value="out_of_stock">Hết hàng</option>
+            </select>
+          )}
         </div>
         <CatalogRows
-          key={`${path}:${term}`}
-          {...{ kind, c, user, notify, path, page, setPage, term }}
+          key={`${path}:${term}:${stockStatus}`}
+          {...{
+            kind,
+            c,
+            user,
+            notify,
+            path,
+            page,
+            setPage,
+            term,
+            stockStatus,
+          }}
           categories={categories.data?.data || []}
           categoryError={categories.error}
         />
@@ -201,6 +239,7 @@ function CatalogRows({
   page,
   setPage,
   term,
+  stockStatus,
   categories,
   categoryError,
 }) {
@@ -210,13 +249,47 @@ function CatalogRows({
     [busy, setBusy] = useState(false),
     [actionError, setActionError] = useState("");
   const all = data?.data || [],
-    rows = ["news", "categories"].includes(kind)
-      ? all.filter((x) =>
-          (x.title || x.name || "")
-            .toLocaleLowerCase("vi")
-            .includes(term.toLocaleLowerCase("vi")),
-        )
-      : all;
+    rows =
+      kind === "products"
+        ? all.filter((x) => {
+            // Lọc theo trạng thái kho hàng
+            if (stockStatus) {
+              const stock = Number(x.stock) || 0;
+              if (stockStatus === "in_stock" && stock < 5) return false;
+              if (stockStatus === "low_stock" && (stock <= 0 || stock >= 5))
+                return false;
+              if (stockStatus === "out_of_stock" && stock !== 0) return false;
+            }
+            // Tìm kiếm theo cả tên sản phẩm lẫn mã SKU
+            if (term) {
+              const t = term.trim().toLowerCase();
+              const rawT = t.replace(/^#/, "");
+              const name = (x.name || "").toLowerCase();
+              const sku = (x.sku || "").toLowerCase();
+              const fullId = (x._id || "").toLowerCase();
+              const shortId = (
+                x._id ? `#${x._id.slice(-6).toUpperCase()}` : ""
+              ).toLowerCase();
+              const rawShortId = (x._id ? x._id.slice(-6) : "").toLowerCase();
+
+              const matchName = name.includes(t);
+              const matchSku = sku.includes(t);
+              const matchId =
+                shortId.includes(t) ||
+                rawShortId.includes(rawT) ||
+                fullId.includes(rawT);
+
+              if (!matchName && !matchSku && !matchId) return false;
+            }
+            return true;
+          })
+        : ["news", "categories"].includes(kind)
+        ? all.filter((x) =>
+            (x.title || x.name || "")
+              .toLocaleLowerCase("vi")
+              .includes(term.toLocaleLowerCase("vi")),
+          )
+        : all;
   const allowedDelete = kind !== "products" || isSuper(user);
   const writable = kind !== "news" || isCanonicalAdmin(user);
   async function remove() {
@@ -238,7 +311,9 @@ function CatalogRows({
     <>
       <div className="list-heading">
         <span>
-          {data?.pagination?.totalProducts != null
+          {kind === "products" && stockStatus
+            ? `${rows.length} ${c.singular} (theo bộ lọc kho)`
+            : data?.pagination?.totalProducts != null
             ? `${data.pagination.totalProducts} ${c.singular}`
             : `${rows.length} mục trong trang này`}
         </span>
@@ -295,11 +370,17 @@ function CatalogRows({
                       />
                       <div>
                         <strong>{x.name || x.title}</strong>
-                        <small>
-                          {kind === "users"
-                            ? x.email
-                            : `#${x._id.slice(-8).toUpperCase()}`}
-                        </small>
+                        {kind === "products" ? (
+                          <small className="product-sku-code">
+                            SKU: {x.sku || `#${(x._id || "").slice(-6).toUpperCase()}`}
+                          </small>
+                        ) : (
+                          <small>
+                            {kind === "users"
+                              ? x.email
+                              : `#${(x._id || "").slice(-8).toUpperCase()}`}
+                          </small>
+                        )}
                       </div>
                     </div>
                   </td>
@@ -308,7 +389,15 @@ function CatalogRows({
                       <td>{x.category?.name || "Chưa phân loại"}</td>
                       <td className="nowrap strong">{money(x.price)}</td>
                       <td>
-                        <span className={x.stock < 5 ? "stock-low" : ""}>
+                        <span
+                          className={`stock-badge ${
+                            (x.stock ?? 0) === 0
+                              ? "stock-out"
+                              : (x.stock ?? 0) < 5
+                              ? "stock-low"
+                              : "stock-ok"
+                          }`}
+                        >
                           {x.stock ?? 0}
                         </span>
                       </td>
@@ -353,9 +442,11 @@ function CatalogRows({
         <Pager
           page={page}
           setPage={setPage}
-          total={data.pagination?.totalProducts}
+          total={stockStatus ? rows.length : data.pagination?.totalProducts}
           hasNext={
-            data.pagination
+            stockStatus
+              ? false
+              : data.pagination
               ? page < data.pagination.totalPages
               : all.length === 10
           }
@@ -464,13 +555,11 @@ function Editor({
             <>
               <div className="two-col">
                 <Field
-                  label="Giá bán (VNĐ) *"
-                  name="price"
-                  type="number"
-                  min="1"
-                  step="1"
-                  required
-                  defaultValue={item.price || ""}
+                  label="Mã SKU (tùy chọn)"
+                  name="sku"
+                  placeholder="VD: SKU-101, AP-05..."
+                  defaultValue={item.sku || ""}
+                  maxLength={50}
                 />
                 <Field
                   label="Số lượng tồn kho *"
@@ -482,6 +571,15 @@ function Editor({
                   defaultValue={item.stock ?? 0}
                 />
               </div>
+              <Field
+                label="Giá bán (VNĐ) *"
+                name="price"
+                type="number"
+                min="1"
+                step="1"
+                required
+                defaultValue={item.price || ""}
+              />
               <Field label="Danh mục *">
                 <select
                   name="category"

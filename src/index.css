@@ -1435,3 +1435,60 @@ tbody tr:hover {
   background-color: #f1f5f9;
 }
 
+/* US07: Product SKU and Stock Status Filter */
+.product-sku-code {
+  display: inline-block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  color: #475569;
+  background: #f1f5f9;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-top: 4px;
+  letter-spacing: 0.2px;
+  border: 1px solid #e2e8f0;
+}
+.stock-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  min-width: 30px;
+}
+.stock-badge.stock-ok {
+  color: #166534;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+.stock-badge.stock-low {
+  color: #b45309;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  font-weight: 700;
+}
+.stock-badge.stock-out {
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  font-weight: 700;
+}
+.toolbar select {
+  border: 1px solid #dce3ed;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fff;
+  color: #243247;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+.toolbar select:focus {
+  outline: none;
+  border-color: #4275e9;
+  box-shadow: 0 0 0 3px rgba(66, 117, 233, 0.1);
+}
+
+
