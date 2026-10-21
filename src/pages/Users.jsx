@@ -322,7 +322,6 @@ export default function Users({ user, notify }) {
                             onClick={() => setProfileUserId(x._id)}
                             title="Xem chi tiết hồ sơ & lịch sử đơn hàng"
                           >
-                            <Icon name="orders" size={14} />
                             Hồ sơ
                           </button>
 
@@ -333,7 +332,6 @@ export default function Users({ user, notify }) {
                             }}
                             title="Chỉnh sửa thông tin"
                           >
-                            <Icon name="edit" size={14} />
                             Sửa
                           </button>
 
@@ -347,7 +345,6 @@ export default function Users({ user, notify }) {
                                 }}
                                 title="Mở khóa tài khoản"
                               >
-                                <Icon name="unlock" size={14} />
                                 Mở khóa
                               </button>
                             ) : (
@@ -360,7 +357,6 @@ export default function Users({ user, notify }) {
                                 }}
                                 title="Khóa tài khoản vi phạm"
                               >
-                                <Icon name="lock" size={14} />
                                 Khóa
                               </button>
                             ))}
@@ -755,7 +751,6 @@ export function CustomerProfileModal({ userId, user, close, notify }) {
 
         <footer>
           <button type="button" onClick={reload} title="Tải lại hồ sơ">
-            <Icon name="refresh" size={14} />
             Làm mới
           </button>
           <button type="button" className="primary" onClick={close}>

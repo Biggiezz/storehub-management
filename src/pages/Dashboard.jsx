@@ -1,7 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useResource } from "../hooks";
 import { U, money } from "../api";
 import { Icon, State, Photo } from "../components/UI";
+import {
+  clearOrdersCache,
+  getOrdersSnapshot,
+  resolveBarRevenue,
+  resolveBarOrders,
+} from "../services/dashboardStats.js";
 function parseGrowth(rate) {
   const num = typeof rate === "number" ? rate : parseFloat(rate);
   if (isNaN(num)) return null;
@@ -20,6 +26,23 @@ function parseGrowth(rate) {
 export default function Dashboard({ user, navigate }) {
   const [period, setPeriod] = useState("0");
   const stats = useResource(`${U}/admin/dashboard`);
+  const [orders, setOrders] = useState([]);
+
+  useEffect(() => {
+    let active = true;
+    getOrdersSnapshot().then((res) => {
+      if (active && Array.isArray(res)) setOrders(res);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  function handleReload() {
+    clearOrdersCache();
+    stats.reload();
+    getOrdersSnapshot().then((res) => setOrders(res));
+  }
 
   const raw = stats.data?.data || {};
   const growth = raw.growth || {};
@@ -71,7 +94,7 @@ export default function Dashboard({ user, navigate }) {
           <p>Tổng quan tình hình kinh doanh và chỉ số hoạt động trong ngày</p>
         </div>
         <button
-          onClick={stats.reload}
+          onClick={handleReload}
           disabled={stats.loading}
           title="Tải lại chỉ số KPI"
           aria-label="Tải lại dữ liệu"
@@ -79,7 +102,7 @@ export default function Dashboard({ user, navigate }) {
           Làm mới dữ liệu
         </button>
       </div>
-      <State loading={stats.loading} error={stats.error} retry={stats.reload} />
+      <State loading={stats.loading} error={stats.error} retry={handleReload} />
       {stats.data && (
         <div className="stats">
           {kpis.map((item) => (
@@ -140,11 +163,11 @@ export default function Dashboard({ user, navigate }) {
           <option value="2">Năm 2026</option>
         </select>
       </div>
-      <Revenue key={period} period={period} navigate={navigate} />
+      <Revenue key={period} period={period} navigate={navigate} orders={orders} />
     </>
   );
 }
-function Revenue({ period, navigate }) {
+function Revenue({ period, navigate, orders = [] }) {
   const { data, loading, error, reload } = useResource(
     `${U}/admin/revenue-stats?period=${period}&activityLimit=0`,
   );
@@ -176,74 +199,8 @@ function Revenue({ period, navigate }) {
       d.totalRevenue ?? d.totalAmount ?? d.totalSales ?? d.revenue ?? 0,
     totalOrders = d.totalOrders ?? 0;
 
-  function resolveBarRevenue(b) {
-    if (!b) return 0;
-    const candidates = [
-      b.totalAmount,
-      b.totalRevenue,
-      b.amount,
-      b.total,
-      b.orderAmount,
-      b.totalPrice,
-      b.revenue,
-    ];
-    // 1. Nếu trong b đã có trường tiền đầy đủ (>= 10.000 VNĐ)
-    for (const val of candidates) {
-      const num = Number(val);
-      if (!isNaN(num) && num >= 10000) {
-        return num;
-      }
-    }
-    // 2. Tìm giá trị raw đầu tiên khác 0
-    let raw = 0;
-    for (const val of candidates) {
-      const num = Number(val);
-      if (!isNaN(num) && num > 0) {
-        raw = num;
-        break;
-      }
-    }
-    if (raw <= 0) return 0;
-
-    // 3. Nếu raw nhỏ (< 10.000) trong khi tổng doanh thu lớn (>= 100.000 VNĐ):
-    // Backend đã rút gọn hoặc lưu theo đơn vị triệu đồng (hoặc nghìn đồng)
-    if (totalRev >= 100000) {
-      const activeBars = bars.filter((x) => {
-        const v = Number(
-          x.revenue ?? x.totalRevenue ?? x.totalAmount ?? x.amount ?? 0,
-        );
-        return v > 0;
-      });
-      // Nếu chỉ có duy nhất 1 cột có doanh thu trong kỳ (như cột T5)
-      if (activeBars.length === 1) {
-        return totalRev;
-      }
-      // Nếu có nhiều cột: phân bổ theo tỷ lệ
-      const rawSum = bars.reduce((sum, x) => {
-        const v = Number(
-          x.revenue ?? x.totalRevenue ?? x.totalAmount ?? x.amount ?? 0,
-        );
-        return sum + (isNaN(v) ? 0 : v);
-      }, 0);
-      if (rawSum > 0) {
-        const ratio = totalRev / rawSum;
-        if (ratio >= 200000 && ratio <= 5000000) {
-          return Math.round((raw / rawSum) * totalRev);
-        }
-        if (ratio >= 200 && ratio <= 5000) {
-          return Math.round((raw / rawSum) * totalRev);
-        }
-      }
-      // Fallback: Nếu raw < 1.000 và totalRev >= 1.000.000 thì đơn vị là triệu đồng
-      if (raw < 1000 && totalRev >= 1000000) {
-        return raw * 1000000;
-      }
-    }
-    return raw;
-  }
-
   const max = Math.max(
-    ...bars.map((x) => resolveBarRevenue(x)),
+    ...bars.map((x) => resolveBarRevenue(x, bars, totalRev)),
     1,
   );
 
@@ -264,15 +221,15 @@ function Revenue({ period, navigate }) {
         >
           {bars.map((b, i) => {
             const rev = resolveBarRevenue(b);
-            const activeBars = bars.filter((x) => resolveBarRevenue(x) > 0);
-            const orderCount =
-              b.orderCount ??
-              b.orders ??
-              (rev > 0 && activeBars.length === 1 && totalOrders > 0
-                ? totalOrders
-                : rev > 0
-                ? Math.max(1, Math.round(rev / 2000000))
-                : 0);
+            const orderCount = resolveBarOrders(
+              b,
+              rev,
+              bars,
+              totalOrders,
+              totalRev,
+              orders,
+              period,
+            );
             return (
               <div className="bar-col" key={i} tabIndex={0}>
                 <div className="bar-tooltip" role="tooltip">
@@ -348,3 +305,4 @@ function Revenue({ period, navigate }) {
     </div>
   );
 }
+
