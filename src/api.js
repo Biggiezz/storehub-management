@@ -160,3 +160,38 @@ export function toSlug(str) {
     .replace(/-+/g, "-");           // Bỏ gạch ngang liên tiếp
 }
 
+const CAT_OVERRIDES_KEY = "storehub.category.overrides";
+export function getCategoryOverrides() {
+  try {
+    const raw =
+      typeof localStorage !== "undefined"
+        ? localStorage.getItem(CAT_OVERRIDES_KEY)
+        : typeof sessionStorage !== "undefined"
+          ? sessionStorage.getItem(CAT_OVERRIDES_KEY)
+          : null;
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveCategoryOverride(catId, overrides) {
+  if (!catId) return;
+  try {
+    const current = getCategoryOverrides();
+    current[catId] = {
+      ...(current[catId] || {}),
+      ...overrides,
+      _id: catId,
+      updatedAt: new Date().toISOString(),
+    };
+    const json = JSON.stringify(current);
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(CAT_OVERRIDES_KEY, json);
+    } else if (typeof sessionStorage !== "undefined") {
+      sessionStorage.setItem(CAT_OVERRIDES_KEY, json);
+    }
+  } catch {}
+}
+
+

@@ -10,6 +10,8 @@ import {
   isSuper,
   isCanonicalAdmin,
   toSlug,
+  getCategoryOverrides,
+  saveCategoryOverride,
 } from "../api";
 import { useResource } from "../hooks";
 import {
@@ -80,6 +82,7 @@ export default function Catalog({ kind, user, notify }) {
   });
   const [filter, setFilter] = useState(""),
     [stockStatus, setStockStatus] = useState(""),
+    [categoryStatusFilter, setCategoryStatusFilter] = useState(""),
     [page, setPage] = useState(1);
 
   useEffect(() => {
@@ -162,7 +165,20 @@ export default function Catalog({ kind, user, notify }) {
               </button>
             )}
           </form>
-          {kind !== "categories" && (
+          {kind === "categories" ? (
+            <select
+              aria-label="Lọc trạng thái hiển thị"
+              value={categoryStatusFilter}
+              onChange={(e) => {
+                setCategoryStatusFilter(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">Tất cả trạng thái hiển thị</option>
+              <option value="active">Đang hiển thị</option>
+              <option value="inactive">Tạm ẩn</option>
+            </select>
+          ) : (
             <select
               aria-label="Bộ lọc"
               value={filter}
@@ -206,7 +222,7 @@ export default function Catalog({ kind, user, notify }) {
           )}
         </div>
         <CatalogRows
-          key={`${path}:${term}:${stockStatus}`}
+          key={`${path}:${term}:${stockStatus}:${categoryStatusFilter}`}
           {...{
             kind,
             c,
@@ -217,6 +233,7 @@ export default function Catalog({ kind, user, notify }) {
             setPage,
             term,
             stockStatus,
+            categoryStatusFilter,
           }}
           categories={categories.data?.data || []}
           categoryError={categories.error}
@@ -224,8 +241,9 @@ export default function Catalog({ kind, user, notify }) {
       </div>
       {kind === "categories" && (
         <p className="footnote">
-          API hiện tại chỉ trả về danh mục đang hoạt động. Giao diện không cung
-          cấp thao tác ẩn danh mục để tránh mất khả năng quản lý lại.
+          Chức năng "Bật/Tắt hiển thị danh mục" cho phép tạm ẩn danh mục khỏi sàn
+          người dùng mà vẫn bảo toàn liên kết của các sản phẩm bên trong. Chức năng
+          xóa danh mục đã được thay thế hoàn toàn bằng cơ chế Tạm ẩn.
         </p>
       )}
     </>
@@ -241,6 +259,7 @@ function CatalogRows({
   setPage,
   term,
   stockStatus,
+  categoryStatusFilter,
   categories,
   categoryError,
 }) {
@@ -338,48 +357,126 @@ function CatalogRows({
       reload();
     }
   }
-  const all = data?.data || [],
-    rows =
-      kind === "products"
-        ? all.filter((x) => {
-            // Lọc theo trạng thái kho hàng
-            if (stockStatus) {
-              const stock = Number(x.stock) || 0;
-              if (stockStatus === "in_stock" && stock < 5) return false;
-              if (stockStatus === "low_stock" && (stock <= 0 || stock >= 5))
-                return false;
-              if (stockStatus === "out_of_stock" && stock !== 0) return false;
-            }
-            // Tìm kiếm theo cả tên sản phẩm lẫn mã SKU
-            if (term) {
-              const t = term.trim().toLowerCase();
-              const rawT = t.replace(/^#/, "");
-              const name = (x.name || "").toLowerCase();
-              const sku = (x.sku || "").toLowerCase();
-              const fullId = (x._id || "").toLowerCase();
-              const shortId = (
-                x._id ? `#${x._id.slice(-6).toUpperCase()}` : ""
-              ).toLowerCase();
-              const rawShortId = (x._id ? x._id.slice(-6) : "").toLowerCase();
 
-              const matchName = name.includes(t);
-              const matchSku = sku.includes(t);
-              const matchId =
-                shortId.includes(t) ||
-                rawShortId.includes(rawT) ||
-                fullId.includes(rawT);
+  async function handleToggleCategoryStatus(category) {
+    if (!category || !category._id || togglingIds[category._id]) return;
 
-              if (!matchName && !matchSku && !matchId) return false;
-            }
-            return true;
-          })
-        : ["news", "categories"].includes(kind)
-        ? all.filter((x) =>
-            (x.title || x.name || "")
+    const previousActive = category.isActive !== false;
+    const nextActive = !previousActive;
+
+    // 1. Đổi trạng thái hiển thị tức thì trên giao diện (Optimistic UI)
+    category.isActive = nextActive;
+    saveCategoryOverride(category._id, { ...category, isActive: nextActive });
+    setTogglingIds((prev) => ({ ...prev, [category._id]: true }));
+
+    try {
+      const form = new FormData();
+      if (category.name) form.set("name", category.name);
+      if (category.slug) form.set("slug", category.slug);
+      if (category.description) form.set("description", category.description);
+      if (category.orderIndex || category.sortOrder) {
+        form.set("orderIndex", String(category.orderIndex || category.sortOrder));
+      }
+      form.set("isActive", String(nextActive));
+
+      await request(`${P}/update-category/${category._id}`, {
+        method: "PUT",
+        body: form,
+      });
+
+      // 2. Thông báo toast theo đúng yêu cầu AC3 của US15
+      notify(
+        nextActive
+          ? `Đã bật hiển thị danh mục "${category.name}" trên sàn.`
+          : `Đã tạm ẩn danh mục "${category.name}". Các sản phẩm bên trong vẫn giữ nguyên liên kết.`,
+      );
+    } catch (err) {
+      // Revert nếu có lỗi
+      category.isActive = previousActive;
+      saveCategoryOverride(category._id, { ...category, isActive: previousActive });
+      notify(err.message || "Cập nhật trạng thái hiển thị danh mục thất bại.");
+    } finally {
+      setTogglingIds((prev) => {
+        const next = { ...prev };
+        delete next[category._id];
+        return next;
+      });
+      reload();
+    }
+  }
+
+  const rawAll = data?.data || [];
+  const all = useMemo(() => {
+    if (kind !== "categories") return rawAll;
+    const overrides = getCategoryOverrides();
+    // 1. Áp dụng override cho các danh mục trả về từ API
+    const merged = rawAll.map((cat) => {
+      const ovr = overrides[cat._id];
+      return ovr ? { ...cat, ...ovr } : cat;
+    });
+    // 2. Giữ lại các danh mục tạm ẩn trong overrides nếu API chưa trả về
+    Object.values(overrides).forEach((ovrCat) => {
+      if (ovrCat && ovrCat._id && !merged.some((c) => c._id === ovrCat._id)) {
+        merged.push(ovrCat);
+      }
+    });
+    return merged;
+  }, [rawAll, kind]);
+
+  const rows =
+    kind === "products"
+      ? all.filter((x) => {
+          // Lọc theo trạng thái kho hàng
+          if (stockStatus) {
+            const stock = Number(x.stock) || 0;
+            if (stockStatus === "in_stock" && stock < 5) return false;
+            if (stockStatus === "low_stock" && (stock <= 0 || stock >= 5))
+              return false;
+            if (stockStatus === "out_of_stock" && stock !== 0) return false;
+          }
+          // Tìm kiếm theo cả tên sản phẩm lẫn mã SKU
+          if (term) {
+            const t = term.trim().toLowerCase();
+            const rawT = t.replace(/^#/, "");
+            const name = (x.name || "").toLowerCase();
+            const sku = (x.sku || "").toLowerCase();
+            const fullId = (x._id || "").toLowerCase();
+            const shortId = (
+              x._id ? `#${x._id.slice(-6).toUpperCase()}` : ""
+            ).toLowerCase();
+            const rawShortId = (x._id ? x._id.slice(-6) : "").toLowerCase();
+
+            const matchName = name.includes(t);
+            const matchSku = sku.includes(t);
+            const matchId =
+              shortId.includes(t) ||
+              rawShortId.includes(rawT) ||
+              fullId.includes(rawT);
+
+            if (!matchName && !matchSku && !matchId) return false;
+          }
+          return true;
+        })
+      : kind === "categories"
+      ? all.filter((x) => {
+          if (categoryStatusFilter === "active" && x.isActive === false)
+            return false;
+          if (categoryStatusFilter === "inactive" && x.isActive !== false)
+            return false;
+          if (term) {
+            return (x.name || "")
               .toLocaleLowerCase("vi")
-              .includes(term.toLocaleLowerCase("vi")),
-          )
-        : all;
+              .includes(term.toLocaleLowerCase("vi"));
+          }
+          return true;
+        })
+      : kind === "news"
+      ? all.filter((x) =>
+          (x.title || x.name || "")
+            .toLocaleLowerCase("vi")
+            .includes(term.toLocaleLowerCase("vi")),
+        )
+      : all;
   const allowedDelete = kind !== "products" || isSuper(user);
   const writable = kind !== "news" || isCanonicalAdmin(user);
   async function remove() {
@@ -578,9 +675,41 @@ function CatalogRows({
                         </span>
                       </td>
                       <td>
-                        <Badge tone="green">
-                          {x.isActive === false ? "Tạm ẩn" : "Đang hiển thị"}
-                        </Badge>
+                        <div className="status-toggle-cell">
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={x.isActive !== false}
+                            aria-label={`Chuyển trạng thái hiển thị cho danh mục ${x.name}`}
+                            className={`status-toggle-switch ${
+                              x.isActive !== false ? "active" : "inactive"
+                            } ${togglingIds[x._id] ? "loading" : ""}`}
+                            disabled={!writable || !!togglingIds[x._id]}
+                            onClick={() => handleToggleCategoryStatus(x)}
+                            title={
+                              x.isActive !== false
+                                ? "Click để chuyển sang Tạm ẩn (ẩn khỏi sàn người dùng)"
+                                : "Click để Bật hiển thị ra sàn người dùng"
+                            }
+                          >
+                            <span className="toggle-thumb">
+                              {togglingIds[x._id] && (
+                                <span className="toggle-spinner" />
+                              )}
+                            </span>
+                          </button>
+                          <span
+                            className={`status-toggle-label ${
+                              x.isActive !== false ? "active" : "inactive"
+                            }`}
+                          >
+                            {togglingIds[x._id]
+                              ? "Đang lưu…"
+                              : x.isActive !== false
+                              ? "Đang hiển thị"
+                              : "Tạm ẩn"}
+                          </span>
+                        </div>
                       </td>
                     </>
                   ) : (
@@ -604,18 +733,44 @@ function CatalogRows({
                         </button>
                       )}
                       {writable && <button onClick={() => setEditing(x)}>Sửa</button>}
-                      {/* Nút xóa sản phẩm được ẩn theo yêu cầu US08 */}
-                      {kind !== "products" && allowedDelete && writable && x._id !== user._id && (
+                      {kind === "categories" && writable && (
                         <button
-                          className="danger-link"
-                          onClick={() => {
-                            setDeleting(x);
-                            setActionError("");
-                          }}
+                          type="button"
+                          className={
+                            x.isActive === false
+                              ? "btn-unhide-category"
+                              : "btn-hide-category"
+                          }
+                          disabled={!!togglingIds[x._id]}
+                          onClick={() => handleToggleCategoryStatus(x)}
+                          title={
+                            x.isActive === false
+                              ? "Bật lại hiển thị danh mục trên sàn người dùng"
+                              : "Tạm ẩn danh mục khỏi sàn (vẫn bảo toàn liên kết sản phẩm)"
+                          }
                         >
-                          Xóa
+                          {togglingIds[x._id]
+                            ? "Đang lưu…"
+                            : x.isActive === false
+                            ? "Bật hiển thị"
+                            : "Tạm ẩn"}
                         </button>
                       )}
+                      {/* Nút xóa sản phẩm được ẩn theo yêu cầu US08, nút xóa danh mục được loại bỏ theo US15 AC3 để thay thế bằng Bật/Tắt hiển thị */}
+                      {!["products", "categories"].includes(kind) &&
+                        allowedDelete &&
+                        writable &&
+                        x._id !== user._id && (
+                          <button
+                            className="danger-link"
+                            onClick={() => {
+                              setDeleting(x);
+                              setActionError("");
+                            }}
+                          >
+                            Xóa
+                          </button>
+                        )}
                     </div>
                   </td>
                 </tr>
@@ -908,6 +1063,9 @@ function Editor({
     item.slug || (item.name ? toSlug(item.name) : ""),
   );
   const [isManualSlug, setIsManualSlug] = useState(!!item.slug);
+  const [categoryIsActive, setCategoryIsActive] = useState(
+    item.isActive !== false,
+  );
 
   const isDuplicateCategoryName =
     kind === "categories" &&
@@ -1111,6 +1269,17 @@ function Editor({
         if (categorySlug) {
           form.set("slug", categorySlug.trim());
         }
+        form.set("isActive", String(categoryIsActive));
+        if (item._id) {
+          saveCategoryOverride(item._id, {
+            ...item,
+            name: catName,
+            slug: categorySlug.trim(),
+            description: form.get("description"),
+            orderIndex: form.get("orderIndex"),
+            isActive: categoryIsActive,
+          });
+        }
       }
       await request(c.base + (edit ? c.update + item._id : c.add), {
         method: edit ? "PUT" : "POST",
@@ -1211,6 +1380,37 @@ function Editor({
                   defaultValue={item.orderIndex || item.sortOrder || 1}
                   placeholder="VD: 1, 2, 3..."
                 />
+              </Field>
+
+              <Field label="Trạng thái hiển thị">
+                <div className="category-status-editor-row">
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={categoryIsActive}
+                    className={`status-toggle-switch ${
+                      categoryIsActive ? "active" : "inactive"
+                    }`}
+                    onClick={() => setCategoryIsActive(!categoryIsActive)}
+                    title={
+                      categoryIsActive
+                        ? "Click để Tạm ẩn danh mục khỏi sàn"
+                        : "Click để Bật hiển thị danh mục ra sàn"
+                    }
+                  >
+                    <span className="toggle-thumb" />
+                  </button>
+                  <span
+                    className={`status-toggle-label ${
+                      categoryIsActive ? "active" : "inactive"
+                    }`}
+                  >
+                    {categoryIsActive ? "Đang hiển thị" : "Tạm ẩn (ẩn khỏi sàn)"}
+                  </span>
+                </div>
+                <small className="muted" style={{ margin: "4px 0 0", fontSize: "11px" }}>
+                  Khi tạm ẩn, danh mục không xuất hiện trên sàn người dùng nhưng các sản phẩm bên trong vẫn giữ nguyên liên kết.
+                </small>
               </Field>
             </>
           ) : (
