@@ -18,12 +18,15 @@ const Settings = lazy(() => import("./pages/Settings"));
 const Users = lazy(() => import("./pages/Users"));
 const VipCustomers = lazy(() => import("./pages/VipCustomers"));
 const ActivityLog = lazy(() => import("./pages/ActivityLog"));
+const Reviews = lazy(() => import("./pages/Reviews"));
 
 const navigation = [
   ["dashboard", "Tổng quan"],
   ["products", "Sản phẩm"],
+
   ["categories", "Danh mục"],
   ["orders", "Đơn hàng"],
+  ["reviews", "Đánh giá sản phẩm"],
   ["users", "Người dùng"],
   ["vip", "Khách hàng thân thiết"],
   ["news", "Tin tức"],
@@ -208,6 +211,8 @@ export default function App() {
               <VipCustomers />
             ) : page === "activity-log" ? (
               <ActivityLog />
+            ) : page === "reviews" ? (
+              <Reviews />
             ) : (
               <Catalog key={page} kind={page} user={user} notify={setToast} />
             )}
