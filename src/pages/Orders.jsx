@@ -14,6 +14,8 @@ import {
   EMPTY_ORDER_FILTERS,
   ORDER_STATUSES,
   ORDER_TABS,
+  ORDER_PAYMENT_METHODS,
+  CANCEL_REASONS,
   countOrdersByTab,
   validateOrderFilters,
   hasOrderFilters,
@@ -87,6 +89,19 @@ export default function Orders({ user, notify }) {
           </Field>
           <Field label="Đến ngày">
             <input type="date" value={draft.toDate} onChange={set("toDate")} />
+          </Field>
+          <Field label="Phương thức thanh toán">
+            <select
+              value={draft.paymentMethod}
+              onChange={set("paymentMethod")}
+            >
+              <option value="">Tất cả phương thức</option>
+              {ORDER_PAYMENT_METHODS.map((method) => (
+                <option key={method} value={method}>
+                  {method}
+                </option>
+              ))}
+            </select>
           </Field>
         </div>
         {error && (
@@ -365,16 +380,58 @@ export function OrderDetail({ id, user, close, saved }) {
   const [busy, setBusy] = useState(false),
     [actionError, setActionError] = useState(""),
     [confirmation, setConfirmation] = useState("");
+  const [selectedReason, setSelectedReason] = useState("");
+  const [customReason, setCustomReason] = useState("");
+  const [reasonError, setReasonError] = useState("");
+
   const o = data?.data;
+
+  function handleStatusChange(e) {
+    const nextStatus = e.target.value;
+    setConfirmation(nextStatus);
+    setSelectedReason("");
+    setCustomReason("");
+    setReasonError("");
+    setActionError("");
+  }
+
   async function update() {
+    if (confirmation === "Đã hủy") {
+      if (!selectedReason) {
+        setReasonError("Vui lòng chọn lý do hủy đơn hàng.");
+        return;
+      }
+      if (selectedReason === "Lý do khác" && !customReason.trim()) {
+        setReasonError("Vui lòng nhập chi tiết lý do hủy đơn hàng.");
+        return;
+      }
+    }
+
     setBusy(true);
     setActionError("");
+    setReasonError("");
+
+    const finalCancelReason =
+      confirmation === "Đã hủy"
+        ? selectedReason === "Lý do khác"
+          ? customReason.trim()
+          : selectedReason
+        : undefined;
+
     try {
+      const body = { status: confirmation };
+      if (finalCancelReason) {
+        body.cancelReason = finalCancelReason;
+      }
+
       await request(`${O}/admin/orders/${id}/status`, {
         method: "PUT",
-        body: { status: confirmation },
+        body,
       });
+
       setConfirmation("");
+      setSelectedReason("");
+      setCustomReason("");
       reload();
       saved();
     } catch (e) {
@@ -383,6 +440,7 @@ export function OrderDetail({ id, user, close, saved }) {
       setBusy(false);
     }
   }
+
   return (
     <Modal title={`Đơn hàng ${o?.orderCode || ""}`} close={close} busy={busy}>
       <div className="modal-body">
@@ -440,19 +498,39 @@ export function OrderDetail({ id, user, close, saved }) {
                 xác nhận đã thu tiền.
               </small>
             </div>
-            {o.cancelReason && (
-              <p className="error">Lý do hủy: {o.cancelReason}</p>
-            )}
+
+            {/* US20 AC1: Hiển thị lý do hủy rõ ràng trên chi tiết đơn hàng sau khi hủy */}
+            {o.cancelReason ? (
+              <div className="cancel-reason-alert" role="alert">
+                <div className="cancel-reason-header">
+                  <span className="cancel-reason-icon">✕</span>
+                  <strong>Đơn hàng đã hủy</strong>
+                </div>
+                <div className="cancel-reason-content">
+                  <span className="cancel-reason-label">Lý do hủy:</span>
+                  <span className="cancel-reason-text">{o.cancelReason}</span>
+                </div>
+              </div>
+            ) : o.status === "Đã hủy" ? (
+              <div className="cancel-reason-alert" role="alert">
+                <div className="cancel-reason-header">
+                  <span className="cancel-reason-icon">✕</span>
+                  <strong>Đơn hàng đã hủy</strong>
+                </div>
+              </div>
+            ) : null}
+
             {o.disputeReason && (
               <p className="error">Khiếu nại: {o.disputeReason}</p>
             )}
+
             {nextStatuses(o.status, user).length > 0 && (
               <div className="status-form">
                 <Field label="Chuyển trạng thái">
                   <select
                     value={confirmation}
                     disabled={busy}
-                    onChange={(e) => setConfirmation(e.target.value)}
+                    onChange={handleStatusChange}
                   >
                     <option value="">Chọn trạng thái tiếp theo</option>
                     {nextStatuses(o.status, user).map((s) => (
@@ -460,12 +538,58 @@ export function OrderDetail({ id, user, close, saved }) {
                     ))}
                   </select>
                 </Field>
+
                 {confirmation && (
                   <>
+                    {/* US20 AC1: Form yêu cầu nhập lý do hủy bắt buộc khi chọn "Đã hủy" */}
+                    {confirmation === "Đã hủy" && (
+                      <div className="cancel-form-section">
+                        <Field label="Lý do hủy đơn hàng (bắt buộc)">
+                          <select
+                            value={selectedReason}
+                            disabled={busy}
+                            onChange={(e) => {
+                              setSelectedReason(e.target.value);
+                              setReasonError("");
+                            }}
+                          >
+                            <option value="">-- Chọn lý do hủy đơn --</option>
+                            {CANCEL_REASONS.map((r) => (
+                              <option key={r} value={r}>
+                                {r}
+                              </option>
+                            ))}
+                          </select>
+                        </Field>
+
+                        {selectedReason === "Lý do khác" && (
+                          <Field label="Nhập lý do hủy cụ thể (bắt buộc)">
+                            <textarea
+                              value={customReason}
+                              disabled={busy}
+                              onChange={(e) => {
+                                setCustomReason(e.target.value);
+                                setReasonError("");
+                              }}
+                              placeholder="Vui lòng nhập lý do hủy chi tiết tại đây..."
+                              rows={3}
+                              maxLength={500}
+                            />
+                          </Field>
+                        )}
+
+                        {reasonError && (
+                          <p className="error cancel-error-msg" role="alert">
+                            {reasonError}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
                     <p className="footnote">
                       Xác nhận chuyển sang <strong>{confirmation}</strong>?{" "}
                       {confirmation === "Đã hủy" &&
-                        "BE sẽ hoàn tồn kho và có thể gọi hoàn tiền ZaloPay."}
+                        "Hệ thống sẽ cập nhật trạng thái hủy, hoàn trả số lượng sản phẩm vào kho và xử lý hoàn tiền nếu có."}
                     </p>
                     <button
                       className={
@@ -474,7 +598,11 @@ export function OrderDetail({ id, user, close, saved }) {
                       disabled={busy}
                       onClick={update}
                     >
-                      {busy ? "Đang cập nhật…" : "Xác nhận cập nhật"}
+                      {busy
+                        ? "Đang cập nhật…"
+                        : confirmation === "Đã hủy"
+                        ? "Xác nhận hủy đơn hàng"
+                        : "Xác nhận cập nhật"}
                     </button>
                   </>
                 )}

@@ -6,7 +6,24 @@ export const EMPTY_ORDER_FILTERS = {
   fromDate: "",
   toDate: "",
   status: "",
+  paymentMethod: "",
 };
+
+/**
+ * US17 AC2: Danh sách các phương thức thanh toán hỗ trợ lọc
+ */
+export const ORDER_PAYMENT_METHODS = ["COD", "ZaloPay"];
+
+/**
+ * US20 AC1: Danh sách các lý do hủy đơn hàng mẫu thông dụng
+ */
+export const CANCEL_REASONS = [
+  "Khách hàng yêu cầu hủy",
+  "Hết hàng trong kho",
+  "Sai thông tin giao hàng/SĐT không liên lạc được",
+  "Nghi ngờ đơn hàng ảo/gian lận",
+  "Lý do khác",
+];
 export const ORDER_STATUSES = [
   "Chờ xác nhận",
   "Đã xác nhận",
@@ -127,6 +144,37 @@ export function validateOrderFilters(filters) {
     return "Từ ngày phải nhỏ hơn hoặc bằng đến ngày.";
   return "";
 }
+export function matchesPaymentMethod(orderPaymentMethod, filterPaymentMethod) {
+  if (!filterPaymentMethod) return true;
+  if (!orderPaymentMethod) return false;
+
+  const o = String(orderPaymentMethod).trim();
+  const f = String(filterPaymentMethod).trim();
+  if (o.toLowerCase() === f.toLowerCase()) return true;
+
+  const normOrder = normalizeSearch(o);
+  const normFilter = normalizeSearch(f);
+
+  if (normFilter.includes("cod") || normFilter.includes("nhan hang")) {
+    return normOrder.includes("cod") || normOrder.includes("nhan hang");
+  }
+  if (normFilter.includes("vnpay")) {
+    return normOrder.includes("vnpay");
+  }
+  if (normFilter.includes("zalopay") || normFilter.includes("zalo")) {
+    return normOrder.includes("zalopay") || normOrder.includes("zalo");
+  }
+  if (normFilter.includes("chuyen khoan") || normFilter.includes("ngan hang")) {
+    return (
+      normOrder.includes("chuyen khoan") ||
+      normOrder.includes("ngan hang") ||
+      normOrder.includes("banking") ||
+      normOrder.includes("bank")
+    );
+  }
+  return normOrder.includes(normFilter) || normFilter.includes(normOrder);
+}
+
 export function filterOrders(orders, filters) {
   const error = validateOrderFilters(filters);
   if (error) throw new Error(error);
@@ -157,10 +205,16 @@ export function filterOrders(orders, filters) {
         ? filters.status.length === 0 || filters.status.includes(orderStatus)
         : orderStatus === filters.status);
 
+    const paymentMatch = matchesPaymentMethod(
+      order.paymentMethod,
+      filters.paymentMethod,
+    );
+
     return (
       (!code || normalizeSearch(order.orderCode || order._id).includes(code)) &&
       (!customer || customerText.includes(customer)) &&
       statusMatch &&
+      paymentMatch &&
       (!(filters.fromDate || filters.toDate) ||
         (Number.isFinite(timestamp) && timestamp >= from && timestamp < until))
     );
