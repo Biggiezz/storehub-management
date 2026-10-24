@@ -3655,5 +3655,608 @@ main {
   color: #0f172a;
 }
 
+/* =========================================================
+   STOREHUB MANAGEMENT - RESPONSIVE PATCH
+   H�+� tr�+� m+�n h+�nh 320px - 2560px
+   D+�n �+� CU�+�I src/index.css
+   ========================================================= */
+
+/* Ng-�n phߦ�n t�+� co gi+�n g+�y tr+�n ngang */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+  -webkit-text-size-adjust: 100%;
+}
+
+body,
+#root {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 100vh;
+  margin: 0;
+}
+
+body {
+  overflow-x: clip;
+}
+
+.app-shell,
+.main-shell,
+main,
+.card,
+section,
+article,
+.dashboard-grid,
+.stats,
+.toolbar,
+.filter-panel,
+.modal,
+.modal-body {
+  min-width: 0;
+  max-width: 100%;
+}
+
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+}
+
+input,
+select,
+textarea,
+button {
+  max-width: 100%;
+}
+
+input,
+select,
+textarea {
+  min-width: 0;
+}
+
+/* Bߦ�ng d�+� li�+�u: cu�+�n ngang b+�n trong v+�ng bߦ�ng */
+.table-wrap,
+.specs-table-wrap {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.table-wrap table,
+.specs-table-wrap table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+}
+
+.table-wrap th,
+.table-wrap td,
+.specs-table-wrap th,
+.specs-table-wrap td {
+  white-space: nowrap;
+}
+
+.table-wrap td,
+.specs-table-wrap td {
+  overflow-wrap: anywhere;
+}
+
+/* C+�c bߦ�ng kh+�ng c+� wrapper: cho ph+�p cu�+�n �+� v+�ng ch�+�a ph+� h�+�p */
+table {
+  max-width: 100%;
+}
+
+/* L���+�i th�+�ng k+� */
+.stats,
+.stats-grid,
+.vip-stats-grid,
+.reviews-stats-grid,
+.customer-stats-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
+  min-width: 0;
+}
+
+.stat,
+.stats > *,
+.stats-grid > *,
+.vip-stats-grid > *,
+.reviews-stats-grid > *,
+.customer-stats-grid > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Toolbar, b�+� l�+�c v+� nh+�m n+�t */
+.toolbar,
+.actions,
+.filter-footer,
+.section-head,
+.list-heading,
+.welcome,
+.vip-filter-toolbar,
+.vip-filter-inputs {
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.toolbar > *,
+.actions > *,
+.filter-footer > * {
+  min-width: 0;
+}
+
+.toolbar input,
+.toolbar .searchbox,
+.toolbar .searchbox input,
+.filter-panel input,
+.filter-panel select,
+.filter-grid input,
+.filter-grid select,
+.vip-filter-inputs input,
+.vip-filter-inputs select {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.toolbar .searchbox {
+  flex: 1 1 240px;
+  width: 100%;
+}
+
+.toolbar select {
+  flex: 0 1 auto;
+  max-width: 100%;
+}
+
+.filter-grid,
+.order-filter-grid,
+.vip-filters {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.filter-grid > *,
+.order-filter-grid > *,
+.vip-filters > * {
+  min-width: 0;
+}
+
+/* Modal v+� n�+�i dung form */
+.modal {
+  width: calc(100% - 32px);
+  max-width: min(600px, calc(100vw - 32px));
+  max-height: 90vh;
+  max-height: 90dvh;
+  overflow: hidden;
+}
+
+.modal.modal-wide {
+  width: calc(100% - 32px);
+  max-width: min(900px, calc(100vw - 32px));
+}
+
+.modal-body {
+  min-width: 0;
+  max-height: calc(90vh - 140px);
+  max-height: calc(90dvh - 140px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.modal > header,
+.modal footer {
+  min-width: 0;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.modal form,
+.modal .form-grid,
+.modal .field {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.modal input,
+.modal select,
+.modal textarea {
+  width: 100%;
+  min-width: 0;
+}
+
+.two-col,
+.form-two-columns,
+.form-grid.two-columns {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* Tablet: t�+�i -�a 1024px */
+@media (max-width: 1024px) {
+  .sidebar {
+    width: 210px;
+    padding: 24px 14px;
+  }
+
+  .main-shell {
+    margin-left: 210px;
+    width: calc(100% - 210px);
+  }
+
+  main {
+    width: 100%;
+    padding: 24px 20px;
+  }
+
+  .topbar {
+    padding: 0 20px;
+  }
+
+  .stats,
+  .stats-grid,
+  .vip-stats-grid,
+  .reviews-stats-grid,
+  .customer-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .revenue,
+  .top-products {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .filter-grid,
+  .order-filter-grid,
+  .vip-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .section-head {
+    align-items: flex-start;
+  }
+}
+
+/* Mobile v+� tablet nh�+�: t�+�i -�a 768px */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: min(280px, 85vw);
+    height: 100vh;
+    height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    transform: translateX(-105%);
+    transition: transform 0.25s ease;
+    z-index: 1001;
+    box-shadow: none;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+    box-shadow: 12px 0 40px rgb(20 33 63 / 15%);
+  }
+
+  .nav-scrim {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    background: rgb(20 33 63 / 55%);
+    border: 0;
+    border-radius: 0;
+    z-index: 1000;
+  }
+
+  .main-shell {
+    width: 100%;
+    min-width: 0;
+    margin-left: 0;
+  }
+
+  .mobile-menu {
+    display: inline-flex;
+    flex: 0 0 auto;
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .topbar {
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    min-height: 64px;
+    padding: 10px 14px;
+    gap: 10px;
+  }
+
+  .breadcrumb {
+    min-width: 0;
+    flex: 1;
+    gap: 8px;
+    overflow-wrap: anywhere;
+  }
+
+  .breadcrumb strong {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .account {
+    min-width: 0;
+    gap: 7px;
+  }
+
+  .account > div {
+    min-width: 0;
+    max-width: 110px;
+  }
+
+  .account strong {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .main-shell main {
+    padding: 20px 14px 30px;
+  }
+
+  .welcome {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .welcome > *,
+  .section-head > *,
+  .list-heading > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .toolbar {
+    padding: 14px;
+    align-items: stretch;
+  }
+
+  .toolbar .searchbox {
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
+
+  .toolbar select,
+  .toolbar > button {
+    max-width: 100%;
+  }
+
+  .filter-grid,
+  .order-filter-grid,
+  .vip-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .filter-grid > .field:last-child {
+    grid-column: auto;
+  }
+
+  .filter-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .filter-footer .actions {
+    justify-content: flex-start;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .stats,
+  .stats-grid,
+  .vip-stats-grid,
+  .reviews-stats-grid,
+  .customer-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .stat {
+    padding: 14px;
+  }
+
+  .revenue,
+  .top-products {
+    padding: 16px;
+  }
+
+  .modal,
+  .modal.modal-wide {
+    width: calc(100% - 24px);
+    max-width: calc(100vw - 24px);
+    max-height: 90vh;
+    max-height: 90dvh;
+    margin: auto;
+  }
+
+  .modal > header {
+    padding: 15px;
+  }
+
+  .modal-body {
+    padding: 15px;
+    max-height: calc(90vh - 120px);
+    max-height: calc(90dvh - 120px);
+  }
+
+  .modal footer {
+    padding: 12px 15px;
+  }
+
+  .two-col,
+  .form-two-columns,
+  .form-grid.two-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .toast {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    max-width: calc(100vw - 24px);
+    overflow-wrap: anywhere;
+  }
+}
+
+/* -�i�+�n thoߦ�i nh�+�: t�+�i -�a 480px */
+@media (max-width: 480px) {
+  h1 {
+    font-size: 23px;
+    letter-spacing: -0.5px;
+    overflow-wrap: anywhere;
+  }
+
+  h2 {
+    font-size: 18px;
+    overflow-wrap: anywhere;
+  }
+
+  main,
+  .main-shell main {
+    padding: 16px 10px 24px;
+  }
+
+  .topbar {
+    padding: 8px 10px;
+  }
+
+  .breadcrumb {
+    gap: 6px;
+    font-size: 11px;
+  }
+
+  .account > div {
+    display: none;
+  }
+
+  .avatar {
+    width: 32px;
+    height: 32px;
+  }
+
+  .stats,
+  .stats-grid,
+  .vip-stats-grid,
+  .reviews-stats-grid,
+  .customer-stats-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .stat {
+    padding: 14px;
+  }
+
+  .card {
+    border-radius: 9px;
+  }
+
+  .toolbar {
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .toolbar input,
+  .toolbar select,
+  .toolbar button,
+  .filter-footer button {
+    min-height: 40px;
+  }
+
+  .actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .actions button {
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .list-heading {
+    padding: 12px 10px;
+    align-items: flex-start;
+  }
+
+  .table-wrap table,
+  .specs-table-wrap table {
+    min-width: 680px;
+  }
+
+  .modal,
+  .modal.modal-wide {
+    width: calc(100% - 16px);
+    max-width: calc(100vw - 16px);
+    border-radius: 10px;
+  }
+
+  .modal > header {
+    padding: 12px;
+  }
+
+  .modal-body {
+    padding: 12px;
+  }
+
+  .modal footer {
+    padding: 10px 12px;
+  }
+
+  .modal footer button {
+    flex: 1 1 auto;
+  }
+
+  .app-footer {
+    padding: 14px 10px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .quick {
+    flex-wrap: wrap;
+    padding: 14px;
+  }
+
+  .quick button {
+    margin-left: 0;
+  }
+}
+
 
 
