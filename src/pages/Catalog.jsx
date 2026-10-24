@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { P, N, query, toSlug } from "../api";
+import { useState, useEffect, useMemo } from "react";
+import { P, N, query, toSlug, getCategoryOverrides } from "../api";
 import { useResource } from "../hooks";
 import { Icon } from "../components/UI";
 import CatalogTable from "../components/catalog/CatalogTable";
@@ -83,6 +83,46 @@ export default function Catalog({ kind, user, notify }) {
   }, [kind]);
 
   const categories = useResource(`${P}/get-categories`);
+  const productsOverview = useResource(
+    `${P}/search-product?limit=1000&showInactive=true`,
+  );
+
+  const allCategories = useMemo(() => {
+    const raw = categories.data?.data || [];
+    const overrides = getCategoryOverrides();
+    const map = new Map();
+
+    if (Array.isArray(raw)) {
+      raw.forEach((cat) => {
+        if (cat && cat._id) map.set(cat._id, { ...cat });
+      });
+    }
+
+    const prods = productsOverview.data?.data;
+    if (Array.isArray(prods)) {
+      prods.forEach((p) => {
+        const cat = p.category;
+        if (cat && typeof cat === "object" && cat._id) {
+          if (!map.has(cat._id)) {
+            map.set(cat._id, { ...cat });
+          }
+        }
+      });
+    }
+
+    Object.values(overrides).forEach((ovrCat) => {
+      if (ovrCat && ovrCat._id) {
+        const existing = map.get(ovrCat._id) || {};
+        map.set(ovrCat._id, { ...existing, ...ovrCat });
+      }
+    });
+
+    return Array.from(map.values()).map((cat) => {
+      const ovr = overrides[cat._id];
+      return ovr ? { ...cat, ...ovr } : cat;
+    });
+  }, [categories.data, productsOverview.data]);
+
   const isSkuSearch =
     kind === "products" &&
     term &&
@@ -92,19 +132,21 @@ export default function Catalog({ kind, user, notify }) {
   const path =
     c.base +
     c.list +
-    query({
-      page,
-      limit: 10,
-      ...(kind === "products"
-        ? {
-            keyword: isSkuSearch ? "" : term,
-            showInactive: true,
-            category: filter,
-          }
-        : kind === "news"
-        ? { status: filter }
-        : {}),
-    });
+    (kind === "categories"
+      ? ""
+      : query({
+          page,
+          limit: 10,
+          ...(kind === "products"
+            ? {
+                keyword: isSkuSearch ? "" : term,
+                showInactive: true,
+                category: filter,
+              }
+            : kind === "news"
+            ? { status: filter }
+            : {}),
+        }));
 
   return (
     <>
@@ -173,7 +215,7 @@ export default function Catalog({ kind, user, notify }) {
                 {kind === "products" ? "Tất cả danh mục" : "Tất cả trạng thái"}
               </option>
               {kind === "products" ? (
-                (categories.data?.data || []).map((x) => (
+                allCategories.map((x) => (
                   <option key={x._id} value={x._id}>
                     {x.name}
                   </option>
@@ -217,7 +259,7 @@ export default function Catalog({ kind, user, notify }) {
             stockStatus,
             categoryStatusFilter,
           }}
-          categories={categories.data?.data || []}
+          categories={allCategories}
           categoryError={categories.error}
         />
       </div>

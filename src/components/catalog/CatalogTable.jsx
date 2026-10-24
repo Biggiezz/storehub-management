@@ -175,19 +175,44 @@ export default function CatalogTable({
   const all = useMemo(() => {
     if (kind !== "categories") return rawAll;
     const overrides = getCategoryOverrides();
-    // 1. Áp dụng override cho các danh mục trả về từ API
-    const merged = rawAll.map((cat) => {
+    const map = new Map();
+
+    // 1. Dữ liệu từ API get-categories
+    if (Array.isArray(rawAll)) {
+      rawAll.forEach((cat) => {
+        if (cat && cat._id) {
+          map.set(cat._id, { ...cat });
+        }
+      });
+    }
+
+    // 2. Fallback trích xuất danh mục từ danh sách sản phẩm (khi BE get-categories chỉ trả về các danh mục isActive=true)
+    const prods = productsResource.data?.data;
+    if (Array.isArray(prods)) {
+      prods.forEach((p) => {
+        const cat = p.category;
+        if (cat && typeof cat === "object" && cat._id) {
+          if (!map.has(cat._id)) {
+            map.set(cat._id, { ...cat });
+          }
+        }
+      });
+    }
+
+    // 3. Giữ lại các danh mục trong overrides lưu ở localStorage/sessionStorage
+    Object.values(overrides).forEach((ovrCat) => {
+      if (ovrCat && ovrCat._id) {
+        const existing = map.get(ovrCat._id) || {};
+        map.set(ovrCat._id, { ...existing, ...ovrCat });
+      }
+    });
+
+    // 4. Áp dụng override mới nhất lên từng danh mục
+    return Array.from(map.values()).map((cat) => {
       const ovr = overrides[cat._id];
       return ovr ? { ...cat, ...ovr } : cat;
     });
-    // 2. Giữ lại các danh mục tạm ẩn trong overrides nếu API chưa trả về
-    Object.values(overrides).forEach((ovrCat) => {
-      if (ovrCat && ovrCat._id && !merged.some((c) => c._id === ovrCat._id)) {
-        merged.push(ovrCat);
-      }
-    });
-    return merged;
-  }, [rawAll, kind]);
+  }, [rawAll, kind, productsResource.data]);
 
   const rows =
     kind === "products"
@@ -263,6 +288,10 @@ export default function CatalogTable({
     }
   }
 
+  const isDataLoading =
+    loading ||
+    (kind === "categories" && productsResource.loading && !all.length);
+
   return (
     <>
       <div className="list-heading">
@@ -285,12 +314,12 @@ export default function CatalogTable({
         </div>
       </div>
       <State
-        loading={loading}
+        loading={isDataLoading}
         error={error}
-        empty={!loading && !error && !rows.length}
+        empty={!isDataLoading && !error && !rows.length}
         retry={reload}
       />
-      {!loading && !error && rows.length > 0 && (
+      {!isDataLoading && !error && rows.length > 0 && (
         <div className="table-wrap">
           <table>
             <thead>
